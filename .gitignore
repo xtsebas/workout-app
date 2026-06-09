@@ -1,0 +1,40 @@
+# Environment & local secrets
+.env
+.env.*
+
+# Claude Code
+.claude
+
+# Dart/Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+
+# Generated files (build_runner output)
+*.g.dart
+*.freezed.dart
+*.isar.dart
+
+# iOS
+ios/Flutter/flutter_export_environment.sh
+ios/Pods/
+ios/.symlinks/
+
+# Android
+android/local.properties
+android/.gradle/
+android/captures/
+android/generatedConfigs/
+
+# IDE
+.idea/
+*.iml
+*.log
+.vscode/
+*.swp
+*~
+
+# macOS
+.DS_Store
