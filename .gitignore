@@ -15,7 +15,6 @@ build/
 # Generated files (build_runner output)
 *.g.dart
 *.freezed.dart
-*.isar.dart
 
 # iOS
 ios/Flutter/flutter_export_environment.sh
