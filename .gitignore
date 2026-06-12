@@ -37,3 +37,6 @@ android/generatedConfigs/
 
 # macOS
 .DS_Store
+
+# Temporary files (e.g. Figma screenshot downloads)
+.tmp/
