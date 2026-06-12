@@ -31,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +40,31 @@ class AppDatabase extends _$AppDatabase {
           await into(appSettings).insert(
             AppSettingsCompanion.insert(id: const Value(1)),
           );
+        },
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(appSettings, appSettings.supabaseUserId);
+
+            await m.addColumn(routines, routines.remoteId);
+            await m.addColumn(routines, routines.updatedAt);
+            await m.addColumn(routines, routines.isSynced);
+
+            await m.addColumn(routineDays, routineDays.remoteId);
+            await m.addColumn(routineDays, routineDays.updatedAt);
+            await m.addColumn(routineDays, routineDays.isSynced);
+
+            await m.addColumn(exerciseSlots, exerciseSlots.remoteId);
+            await m.addColumn(exerciseSlots, exerciseSlots.updatedAt);
+            await m.addColumn(exerciseSlots, exerciseSlots.isSynced);
+
+            await m.addColumn(workoutLogs, workoutLogs.remoteId);
+            await m.addColumn(workoutLogs, workoutLogs.updatedAt);
+            await m.addColumn(workoutLogs, workoutLogs.isSynced);
+
+            await m.addColumn(setLogEntries, setLogEntries.remoteId);
+            await m.addColumn(setLogEntries, setLogEntries.updatedAt);
+            await m.addColumn(setLogEntries, setLogEntries.isSynced);
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');

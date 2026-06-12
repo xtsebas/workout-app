@@ -21,4 +21,9 @@ class SetLogEntries extends Table {
   IntColumn get durationSeconds => integer().nullable()();
   RealColumn get distanceKm => real().nullable()();
   IntColumn get heartRate => integer().nullable()();
+
+  /// Sync-ready columns (used by the future Cloud Sync phase).
+  TextColumn get remoteId => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 }

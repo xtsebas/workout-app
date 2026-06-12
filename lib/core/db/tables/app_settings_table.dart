@@ -7,6 +7,9 @@ class AppSettings extends Table {
   TextColumn get weightUnit => text().withDefault(const Constant('kg'))();
   IntColumn get activeRoutineId => integer().nullable()();
 
+  /// Supabase auth user id, set after sign-in.
+  TextColumn get supabaseUserId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

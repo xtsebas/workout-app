@@ -11,4 +11,9 @@ class RoutineDays extends Table {
   /// 1 = Monday ... 7 = Sunday
   IntColumn get weekday => integer()();
   TextColumn get label => text()();
+
+  /// Sync-ready columns (used by the future Cloud Sync phase).
+  TextColumn get remoteId => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 }

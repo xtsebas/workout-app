@@ -17,4 +17,9 @@ class ExerciseSlots extends Table {
   IntColumn get durationSeconds => integer().nullable()();
   RealColumn get weightKg => real().nullable()();
   TextColumn get notes => text().nullable()();
+
+  /// Sync-ready columns (used by the future Cloud Sync phase).
+  TextColumn get remoteId => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 }
