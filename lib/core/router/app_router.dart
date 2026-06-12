@@ -1,15 +1,41 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/auth/auth_provider.dart';
+import '../../features/auth/sign_in_screen.dart';
+import '../../features/auth/sign_up_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/today/today_screen.dart';
 import 'scaffold_with_nav_bar.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final refreshNotifier = _RouterRefreshNotifier();
+  ref.listen(authStateChangesProvider, (_, _) => refreshNotifier.notify());
+
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: refreshNotifier,
+    redirect: (context, state) {
+      final hasSession = Supabase.instance.client.auth.currentSession != null;
+      final isAuthRoute = state.matchedLocation == '/sign-in' ||
+          state.matchedLocation == '/sign-up';
+
+      if (!hasSession && !isAuthRoute) return '/sign-in';
+      if (hasSession && isAuthRoute) return '/';
+      return null;
+    },
     routes: [
+      GoRoute(
+        path: '/sign-in',
+        builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: '/sign-up',
+        builder: (context, state) => const SignUpScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             ScaffoldWithNavBar(navigationShell: navigationShell),
@@ -43,3 +69,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// Notifies go_router's `refreshListenable` so it re-evaluates `redirect`
+/// whenever the Supabase auth state changes.
+class _RouterRefreshNotifier extends ChangeNotifier {
+  void notify() => notifyListeners();
+}

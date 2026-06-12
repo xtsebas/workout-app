@@ -1,12 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:workout_app/main.dart';
 
 void main() {
-  testWidgets('App launches on the Today tab', (WidgetTester tester) async {
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await Supabase.initialize(
+      url: 'https://example.supabase.co',
+      publishableKey: 'test-anon-key',
+    );
+  });
+
+  testWidgets('Unauthenticated users land on the sign in screen',
+      (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: WorkoutApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Today'), findsWidgets);
+    expect(find.text('Welcome back'), findsOneWidget);
   });
 }

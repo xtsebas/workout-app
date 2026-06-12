@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/db/database_provider.dart';
+import '../auth/auth_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -9,6 +10,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final weightUnit = ref.watch(weightUnitProvider);
+    final authState = ref.watch(authControllerProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -25,6 +27,13 @@ class ProfileScreen extends ConsumerWidget {
               ElevatedButton(
                 onPressed: () => ref.read(weightUnitProvider.notifier).toggle(),
                 child: const Text('Toggle unit'),
+              ),
+              const SizedBox(height: 32),
+              OutlinedButton(
+                onPressed: authState.isLoading
+                    ? null
+                    : () => ref.read(authControllerProvider.notifier).signOut(),
+                child: const Text('Sign out'),
               ),
             ],
           ),
