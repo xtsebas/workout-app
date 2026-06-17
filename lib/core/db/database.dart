@@ -151,6 +151,28 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
+  // Routine CRUD
+  Future<int> insertRoutine(RoutinesCompanion routine) =>
+      into(routines).insert(routine);
+
+  Future<void> updateRoutine(int id, RoutinesCompanion data) =>
+      (update(routines)..where((t) => t.id.equals(id))).write(data);
+
+  Future<void> deleteRoutine(int id) =>
+      (delete(routines)..where((t) => t.id.equals(id))).go();
+
+  Future<int> insertRoutineDay(RoutineDaysCompanion day) =>
+      into(routineDays).insert(day);
+
+  Future<List<RoutineDay>> getRoutineDays(int routineId) =>
+      (select(routineDays)
+            ..where((t) => t.routineId.equals(routineId))
+            ..orderBy([(t) => OrderingTerm.asc(t.weekday)]))
+          .get();
+
+  Future<int> insertExerciseSlot(ExerciseSlotsCompanion slot) =>
+      into(exerciseSlots).insert(slot);
+
   // Exercise cache
   Future<CachedExercise?> getCachedExercise(int wgerId) =>
       (select(exerciseCache)..where((t) => t.wgerId.equals(wgerId)))
