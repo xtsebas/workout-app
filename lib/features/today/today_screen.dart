@@ -1,13 +1,501 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-class TodayScreen extends StatelessWidget {
+import '../../core/db/database.dart';
+import '../../core/theme/app_colors.dart';
+import '../../shared/models/exercise_type.dart';
+import '../workout/workout_provider.dart';
+import 'today_provider.dart';
+
+class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dataAsync = ref.watch(todayDataProvider);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Today')),
-      body: const Center(child: Text('Today screen — coming soon')),
+      body: SafeArea(
+        child: dataAsync.when(
+          loading: () =>
+              const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (data) => _TodayContent(data: data),
+        ),
+      ),
     );
   }
+}
+
+class _TodayContent extends ConsumerWidget {
+  const _TodayContent({required this.data});
+
+  final TodayData data;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final today = data.today;
+    final weekdayName = _weekdayName(today.weekday);
+    final monthDay =
+        '${_monthName(today.month)} ${today.day}';
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  weekdayName,
+                  style: GoogleFonts.outfit(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  monthDay,
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _StatsRow(data: data),
+                const SizedBox(height: 28),
+              ],
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: _buildBody(context, ref),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
+      ],
+    );
+  }
+
+  Widget _buildBody(BuildContext context, WidgetRef ref) {
+    if (data.routine == null) {
+      return SliverToBoxAdapter(child: _NoRoutineCard());
+    }
+
+    if (data.routineDay == null) {
+      return SliverToBoxAdapter(
+        child: _RestDayCard(
+          onFreeWorkout: () => _launchFreeWorkout(context, ref),
+        ),
+      );
+    }
+
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    data.routine!.name,
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.accent,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 4,
+                    height: 4,
+                    decoration: const BoxDecoration(
+                      color: AppColors.textSecondary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    data.routineDay!.label,
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+        if (data.slots.isEmpty)
+          SliverToBoxAdapter(
+            child: _EmptyDayCard(),
+          )
+        else
+          SliverList.separated(
+            itemCount: data.slots.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (context, i) =>
+                _ExerciseCard(slot: data.slots[i]),
+          ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 24),
+            child: ElevatedButton(
+              onPressed: data.slots.isEmpty
+                  ? null
+                  : () => _launchWorkout(context, ref),
+              child: const Text('Start Workout'),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _launchWorkout(BuildContext context, WidgetRef ref) {
+    ref.read(activeWorkoutProvider.notifier).start(
+          slots: data.slots,
+          routineId: data.routine?.id,
+        );
+    context.push('/workout/active');
+  }
+
+  void _launchFreeWorkout(BuildContext context, WidgetRef ref) {
+    ref.read(activeWorkoutProvider.notifier).start(
+          slots: [],
+          routineId: null,
+        );
+    context.push('/workout/active');
+  }
+}
+
+class _StatsRow extends StatelessWidget {
+  const _StatsRow({required this.data});
+
+  final TodayData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final lastWorkoutText = data.lastLog == null
+        ? 'No workouts yet'
+        : 'Last: ${_relativeDays(data.lastLog!.date)}';
+
+    return Row(
+      children: [
+        _StatChip(
+          label: '${data.logsThisWeek}',
+          subtitle: 'this week',
+        ),
+        const SizedBox(width: 12),
+        _StatChip(
+          label: lastWorkoutText,
+          subtitle: '',
+        ),
+      ],
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({required this.label, required this.subtitle});
+
+  final String label;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.cardBorder, width: 0.5),
+      ),
+      child: subtitle.isEmpty
+          ? Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _ExerciseCard extends StatelessWidget {
+  const _ExerciseCard({required this.slot});
+
+  final ExerciseSlot slot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder, width: 0.5),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _typeColor(slot.exerciseType).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              _typeIcon(slot.exerciseType),
+              color: _typeColor(slot.exerciseType),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  slot.exerciseName,
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _slotSummary(slot),
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _slotSummary(ExerciseSlot s) {
+    switch (s.exerciseType) {
+      case ExerciseType.weights:
+        final reps = s.reps != null ? '× ${s.reps} reps' : '';
+        final weight = s.weightKg != null ? ' @ ${s.weightKg}kg' : '';
+        return '${s.sets} sets $reps$weight'.trim();
+      case ExerciseType.bodyweight:
+        final reps = s.reps != null ? '× ${s.reps} reps' : '';
+        return '${s.sets} sets $reps'.trim();
+      case ExerciseType.cardio:
+      case ExerciseType.timed:
+        final dur = s.durationSeconds != null
+            ? '× ${s.durationSeconds}s'
+            : '';
+        return '${s.sets} sets $dur'.trim();
+    }
+  }
+}
+
+class _NoRoutineCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.calendar_today_outlined,
+              color: AppColors.textSecondary, size: 28),
+          const SizedBox(height: 16),
+          Text(
+            'No active routine',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create a routine to track your workouts day by day.',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RestDayCard extends StatelessWidget {
+  const _RestDayCard({required this.onFreeWorkout});
+
+  final VoidCallback onFreeWorkout;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.self_improvement,
+              color: AppColors.textSecondary, size: 28),
+          const SizedBox(height: 16),
+          Text(
+            'Rest day',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your routine has no exercises scheduled today.',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          OutlinedButton(
+            onPressed: onFreeWorkout,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+            ),
+            child: const Text('Log free workout'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyDayCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder, width: 0.5),
+      ),
+      child: Text(
+        'No exercises added for today.',
+        style: GoogleFonts.outfit(
+          fontSize: 14,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+IconData _typeIcon(ExerciseType type) {
+  switch (type) {
+    case ExerciseType.weights:
+      return Icons.fitness_center;
+    case ExerciseType.cardio:
+      return Icons.directions_run;
+    case ExerciseType.timed:
+      return Icons.timer_outlined;
+    case ExerciseType.bodyweight:
+      return Icons.accessibility_new;
+  }
+}
+
+Color _typeColor(ExerciseType type) {
+  switch (type) {
+    case ExerciseType.weights:
+      return AppColors.accent;
+    case ExerciseType.cardio:
+      return const Color(0xFF30D158);
+    case ExerciseType.timed:
+      return const Color(0xFF0A84FF);
+    case ExerciseType.bodyweight:
+      return const Color(0xFFFF9F0A);
+  }
+}
+
+String _weekdayName(int weekday) {
+  const names = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+  return names[(weekday - 1).clamp(0, 6)];
+}
+
+String _monthName(int month) {
+  const names = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return names[(month - 1).clamp(0, 11)];
+}
+
+String _relativeDays(DateTime date) {
+  final diff = DateTime.now().difference(date).inDays;
+  if (diff == 0) return 'today';
+  if (diff == 1) return 'yesterday';
+  return '$diff days ago';
 }

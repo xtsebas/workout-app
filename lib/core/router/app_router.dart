@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/db/database.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../features/auth/sign_in_screen.dart';
 import '../../features/auth/sign_up_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/today/today_screen.dart';
+import '../../features/workout/active_workout_screen.dart';
+import '../../features/workout/exercise_detail_screen.dart';
 import 'scaffold_with_nav_bar.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -35,6 +38,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/sign-up',
         builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: '/workout/active',
+        builder: (context, state) => const ActiveWorkoutScreen(),
+      ),
+      GoRoute(
+        path: '/workout/exercise',
+        builder: (context, state) =>
+            ExerciseDetailScreen(slot: state.extra! as ExerciseSlot),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
