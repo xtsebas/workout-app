@@ -74,9 +74,90 @@ class AppDatabase extends _$AppDatabase {
   Stream<AppSettingsData> watchSettings() =>
       (select(appSettings)..where((t) => t.id.equals(1))).watchSingle();
 
+  Future<AppSettingsData> getSettings() =>
+      (select(appSettings)..where((t) => t.id.equals(1))).getSingle();
+
   Future<void> setWeightUnit(String unit) =>
       (update(appSettings)..where((t) => t.id.equals(1)))
           .write(AppSettingsCompanion(weightUnit: Value(unit)));
+
+  Future<void> setActiveRoutine(int? routineId) =>
+      (update(appSettings)..where((t) => t.id.equals(1)))
+          .write(AppSettingsCompanion(activeRoutineId: Value(routineId)));
+
+  // Routines
+  Future<Routine?> getRoutine(int id) =>
+      (select(routines)..where((t) => t.id.equals(id))).getSingleOrNull();
+
+  Stream<List<Routine>> watchAllRoutines() =>
+      (select(routines)..orderBy([(t) => OrderingTerm.asc(t.name)])).watch();
+
+  // Routine days & slots
+  Future<RoutineDay?> getDayForWeekday(int routineId, int weekday) =>
+      (select(routineDays)
+            ..where((t) =>
+                t.routineId.equals(routineId) & t.weekday.equals(weekday)))
+          .getSingleOrNull();
+
+  Future<List<ExerciseSlot>> getSlotsForDay(int routineDayId) =>
+      (select(exerciseSlots)
+            ..where((t) => t.routineDayId.equals(routineDayId))
+            ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
+          .get();
+
+  // Workout logs
+  Stream<List<WorkoutLog>> watchLogsThisWeek() {
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1));
+    final weekStart = DateTime(monday.year, monday.month, monday.day);
+    return (select(workoutLogs)
+          ..where((t) => t.date.isBiggerOrEqualValue(weekStart))
+          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+        .watch();
+  }
+
+  Future<WorkoutLog?> getLastCompletedLog() =>
+      (select(workoutLogs)
+            ..where((t) => t.isCompleted.equals(true))
+            ..orderBy([(t) => OrderingTerm.desc(t.date)])
+            ..limit(1))
+          .getSingleOrNull();
+
+  Future<int> createWorkoutLog(WorkoutLogsCompanion log) =>
+      into(workoutLogs).insert(log);
+
+  Future<void> insertSetEntry(SetLogEntriesCompanion entry) =>
+      into(setLogEntries).insert(entry);
+
+  Future<List<SetLogEntry>> getLastSetsForExercise(
+    String exerciseName, {
+    int limit = 10,
+  }) async {
+    final recentLogs = await (select(workoutLogs)
+          ..where((t) => t.isCompleted.equals(true))
+          ..orderBy([(t) => OrderingTerm.desc(t.date)])
+          ..limit(5))
+        .get();
+    if (recentLogs.isEmpty) return [];
+    final ids = recentLogs.map((l) => l.id).toList();
+    return (select(setLogEntries)
+          ..where((t) =>
+              t.workoutLogId.isIn(ids) & t.exerciseName.equals(exerciseName))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.workoutLogId),
+            (t) => OrderingTerm.asc(t.setNumber),
+          ])
+          ..limit(limit))
+        .get();
+  }
+
+  // Exercise cache
+  Future<CachedExercise?> getCachedExercise(int wgerId) =>
+      (select(exerciseCache)..where((t) => t.wgerId.equals(wgerId)))
+          .getSingleOrNull();
+
+  Future<void> upsertCachedExercise(ExerciseCacheCompanion entry) =>
+      into(exerciseCache).insertOnConflictUpdate(entry);
 }
 
 LazyDatabase _openConnection() {
