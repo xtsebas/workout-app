@@ -9,6 +9,9 @@ import '../../features/auth/sign_in_screen.dart';
 import '../../features/auth/sign_up_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/progress/progress_screen.dart';
+import '../../features/routines/create_routine_screen.dart';
+import '../../features/routines/exercise_search_screen.dart';
+import '../../features/routines/routine_list_screen.dart';
 import '../../features/today/today_screen.dart';
 import '../../features/workout/active_workout_screen.dart';
 import '../../features/workout/exercise_detail_screen.dart';
@@ -47,6 +50,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/workout/exercise',
         builder: (context, state) =>
             ExerciseDetailScreen(slot: state.extra! as ExerciseSlot),
+      ),
+      GoRoute(
+        path: '/routines',
+        builder: (context, state) => const RoutineListScreen(),
+      ),
+      GoRoute(
+        path: '/routines/create',
+        builder: (context, state) => const CreateRoutineScreen(),
+      ),
+      GoRoute(
+        path: '/routines/exercise/search',
+        builder: (context, state) =>
+            ExerciseSearchScreen(weekday: state.extra! as int),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

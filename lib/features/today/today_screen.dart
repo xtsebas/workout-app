@@ -366,6 +366,14 @@ class _NoRoutineCard extends StatelessWidget {
               height: 1.5,
             ),
           ),
+          const SizedBox(height: 20),
+          OutlinedButton(
+            onPressed: () => context.push('/routines'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+            ),
+            child: const Text('Manage routines'),
+          ),
         ],
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/db/database_provider.dart';
 import '../auth/auth_provider.dart';
@@ -29,6 +30,11 @@ class ProfileScreen extends ConsumerWidget {
                 child: const Text('Toggle unit'),
               ),
               const SizedBox(height: 32),
+              OutlinedButton(
+                onPressed: () => context.push('/routines'),
+                child: const Text('Manage routines'),
+              ),
+              const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: authState.isLoading
                     ? null
