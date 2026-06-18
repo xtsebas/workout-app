@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/db/database.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/exercise_type.dart';
+import '../../shared/widgets/skeleton_loader.dart';
 import '../workout/workout_provider.dart';
 import 'today_provider.dart';
 
@@ -19,8 +22,7 @@ class TodayScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: dataAsync.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator()),
+          loading: () => const TodaySkeleton(),
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (data) => _TodayContent(data: data),
         ),
@@ -145,8 +147,10 @@ class _TodayContent extends ConsumerWidget {
           SliverList.separated(
             itemCount: data.slots.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (context, i) =>
-                _ExerciseCard(slot: data.slots[i]),
+            itemBuilder: (context, i) => _ExerciseCard(slot: data.slots[i])
+                .animate()
+                .fadeIn(duration: 300.ms, delay: (50 * i).ms)
+                .slideX(begin: -0.02, end: 0, duration: 300.ms, delay: (50 * i).ms),
           ),
         SliverToBoxAdapter(
           child: Padding(
@@ -154,7 +158,10 @@ class _TodayContent extends ConsumerWidget {
             child: ElevatedButton(
               onPressed: data.slots.isEmpty
                   ? null
-                  : () => _launchWorkout(context, ref),
+                  : () {
+                      HapticFeedback.mediumImpact();
+                      _launchWorkout(context, ref);
+                    },
               child: const Text('Start Workout'),
             ),
           ),

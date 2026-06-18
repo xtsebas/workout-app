@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -71,7 +72,10 @@ class RoutineListScreen extends ConsumerWidget {
                   .setActive(routines[i].id),
               onDelete: () => _confirmDelete(context, ref, routines[i],
                   isActive: routines[i].id == activeId),
-            ),
+            )
+                .animate()
+                .fadeIn(duration: 300.ms, delay: (50 * i).ms)
+                .slideX(begin: -0.02, end: 0, duration: 300.ms, delay: (50 * i).ms),
           );
         },
       ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -109,7 +110,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                         .removeLastSet(slot.id),
                     onTapDetail: () =>
                         context.push('/workout/exercise', extra: slot),
-                  );
+                  )
+                      .animate()
+                      .fadeIn(duration: 300.ms, delay: (60 * i).ms)
+                      .slideY(begin: 0.04, end: 0, duration: 300.ms, delay: (60 * i).ms);
                 },
               ),
       ),
@@ -121,7 +125,12 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           MediaQuery.of(context).padding.bottom + 16,
         ),
         child: ElevatedButton(
-          onPressed: workoutState.isSaving ? null : () => _finish(context),
+          onPressed: workoutState.isSaving
+              ? null
+              : () {
+                  HapticFeedback.heavyImpact();
+                  _finish(context);
+                },
           child: workoutState.isSaving
               ? const SizedBox(
                   width: 20,
@@ -197,6 +206,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         slot: slot,
         setNumber: setIndex + 1,
         onConfirm: (draft) {
+          HapticFeedback.mediumImpact();
           ref.read(activeWorkoutProvider.notifier).addSet(slot.id, draft);
           Navigator.of(ctx).pop();
         },

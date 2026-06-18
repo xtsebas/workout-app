@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/db/database.dart';
 import '../../core/theme/app_colors.dart';
+import '../../shared/widgets/skeleton_loader.dart';
 import 'progress_provider.dart';
 
 class ProgressScreen extends ConsumerStatefulWidget {
@@ -42,7 +45,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Progress')),
       body: statsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const ProgressSkeleton(),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (stats) => ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
@@ -282,7 +285,12 @@ class _Calendar extends StatelessWidget {
 
                 return Expanded(
                   child: GestureDetector(
-                    onTap: hasWorkout ? () => onDayTap(dayNum) : null,
+                    onTap: hasWorkout
+                        ? () {
+                            HapticFeedback.lightImpact();
+                            onDayTap(dayNum);
+                          }
+                        : null,
                     child: Container(
                       height: 40,
                       margin: const EdgeInsets.symmetric(horizontal: 2),
@@ -373,7 +381,10 @@ class _WorkoutHistory extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        ...logs.map((log) => _LogTile(log: log)),
+        ...logs.asMap().entries.map((e) => _LogTile(log: e.value)
+            .animate()
+            .fadeIn(duration: 300.ms, delay: (50 * e.key).ms)
+            .slideY(begin: 0.05, end: 0, duration: 300.ms, delay: (50 * e.key).ms)),
       ],
     );
   }

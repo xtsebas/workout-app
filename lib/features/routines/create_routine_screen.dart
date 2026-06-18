@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -148,7 +149,10 @@ class _WeekdayPicker extends StatelessWidget {
         final weekday = i + 1;
         final isSelected = selected.contains(weekday);
         return GestureDetector(
-          onTap: () => onToggle(weekday),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onToggle(weekday);
+          },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             width: 40,
