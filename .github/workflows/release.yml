@@ -18,10 +18,12 @@ jobs:
           java-version: '17'
 
       - name: Setup Flutter
-        uses: flutter-actions/setup-flutter@v4
-        with:
-          version: '3.32.4'
-          channel: stable
+        run: |
+          git clone https://github.com/flutter/flutter.git --depth 1 -b stable "$HOME/flutter"
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+
+      - name: Flutter doctor
+        run: flutter doctor -v
 
       - name: Create .env
         run: |
