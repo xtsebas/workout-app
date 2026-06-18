@@ -151,6 +151,64 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
 
+  // Progress queries
+  Future<List<WorkoutLog>> getLogsForMonth(int year, int month) {
+    final start = DateTime(year, month);
+    final end = DateTime(year, month + 1);
+    return (select(workoutLogs)
+          ..where((t) =>
+              t.date.isBiggerOrEqualValue(start) &
+              t.date.isSmallerThanValue(end) &
+              t.isCompleted.equals(true))
+          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+        .get();
+  }
+
+  Future<List<SetLogEntry>> getEntriesForLog(int logId) =>
+      (select(setLogEntries)
+            ..where((t) => t.workoutLogId.equals(logId))
+            ..orderBy([
+              (t) => OrderingTerm.asc(t.exerciseSlotOrder),
+              (t) => OrderingTerm.asc(t.setNumber),
+            ]))
+          .get();
+
+  Future<int> countCompletedLogs() async {
+    final count = countAll();
+    final query = selectOnly(workoutLogs)
+      ..addColumns([count])
+      ..where(workoutLogs.isCompleted.equals(true));
+    final row = await query.getSingle();
+    return row.read(count) ?? 0;
+  }
+
+  Future<int> currentStreak() async {
+    final logs = await (select(workoutLogs)
+          ..where((t) => t.isCompleted.equals(true))
+          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+        .get();
+    if (logs.isEmpty) return 0;
+
+    int streak = 0;
+    var expected = DateTime.now();
+    expected = DateTime(expected.year, expected.month, expected.day);
+
+    for (final log in logs) {
+      final logDate = DateTime(log.date.year, log.date.month, log.date.day);
+      if (logDate == expected) {
+        streak++;
+        expected = expected.subtract(const Duration(days: 1));
+      } else if (logDate == expected.subtract(const Duration(days: 1))) {
+        expected = logDate;
+        streak++;
+        expected = expected.subtract(const Duration(days: 1));
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+
   // Routine CRUD
   Future<int> insertRoutine(RoutinesCompanion routine) =>
       into(routines).insert(routine);
