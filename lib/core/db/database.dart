@@ -276,6 +276,42 @@ class AppDatabase extends _$AppDatabase {
   Future<int> insertExerciseSlot(ExerciseSlotsCompanion slot) =>
       into(exerciseSlots).insert(slot);
 
+  // Sync methods
+  Future<List<WorkoutLog>> getUnsyncedLogs() =>
+      (select(workoutLogs)
+            ..where((t) => t.isSynced.equals(false) & t.isCompleted.equals(true)))
+          .get();
+
+  Future<void> markLogSynced(int id, String remoteId) =>
+      (update(workoutLogs)..where((t) => t.id.equals(id))).write(
+        WorkoutLogsCompanion(
+          isSynced: const Value(true),
+          remoteId: Value(remoteId),
+        ),
+      );
+
+  Future<List<SetLogEntry>> getUnsyncedEntries() async {
+    final syncedLogIds = (await getUnsyncedLogs()).map((l) => l.id).toList();
+    if (syncedLogIds.isEmpty) {
+      return (select(setLogEntries)..where((t) => t.isSynced.equals(false))).get();
+    }
+    return (select(setLogEntries)
+          ..where((t) =>
+              t.isSynced.equals(false) & t.workoutLogId.isNotIn(syncedLogIds)))
+        .get();
+  }
+
+  Future<List<SetLogEntry>> getEntriesForLogSync(int logId) =>
+      (select(setLogEntries)..where((t) => t.workoutLogId.equals(logId))).get();
+
+  Future<void> markEntrySynced(int id, String remoteId) =>
+      (update(setLogEntries)..where((t) => t.id.equals(id))).write(
+        SetLogEntriesCompanion(
+          isSynced: const Value(true),
+          remoteId: Value(remoteId),
+        ),
+      );
+
   // Exercise cache
   Future<CachedExercise?> getCachedExercise(int wgerId) =>
       (select(exerciseCache)..where((t) => t.wgerId.equals(wgerId)))

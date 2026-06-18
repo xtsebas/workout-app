@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/env/env.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'shared/services/sync_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,7 @@ class WorkoutApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    ref.watch(syncServiceProvider);
 
     return MaterialApp.router(
       title: 'Workout',
