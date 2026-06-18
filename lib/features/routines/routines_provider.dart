@@ -35,24 +35,30 @@ class SlotConfig {
 
 class RoutineBuilderState {
   const RoutineBuilderState({
+    this.editingRoutineId,
     this.name = '',
     this.selectedWeekdays = const {},
     this.slotsByDay = const {},
     this.isSaving = false,
   });
 
+  final int? editingRoutineId;
   final String name;
   final Set<int> selectedWeekdays;
   final Map<int, List<SlotConfig>> slotsByDay;
   final bool isSaving;
 
+  bool get isEditing => editingRoutineId != null;
+
   RoutineBuilderState copyWith({
+    int? editingRoutineId,
     String? name,
     Set<int>? selectedWeekdays,
     Map<int, List<SlotConfig>>? slotsByDay,
     bool? isSaving,
   }) =>
       RoutineBuilderState(
+        editingRoutineId: editingRoutineId ?? this.editingRoutineId,
         name: name ?? this.name,
         selectedWeekdays: selectedWeekdays ?? this.selectedWeekdays,
         slotsByDay: slotsByDay ?? this.slotsByDay,
@@ -62,7 +68,7 @@ class RoutineBuilderState {
 
 // ── RoutineBuilder notifier ───────────────────────────────────────────────────
 
-@riverpod
+@Riverpod(keepAlive: true)
 class RoutineBuilder extends _$RoutineBuilder {
   @override
   RoutineBuilderState build() => const RoutineBuilderState();
@@ -110,6 +116,81 @@ class RoutineBuilder extends _$RoutineBuilder {
         for (final weekday in sortedDays) {
           final dayId = await db.insertRoutineDay(RoutineDaysCompanion(
             routineId: Value(routineId),
+            weekday: Value(weekday),
+            label: Value(_weekdayLabel(weekday)),
+          ));
+          final slots = state.slotsByDay[weekday] ?? [];
+          for (var i = 0; i < slots.length; i++) {
+            final s = slots[i];
+            await db.insertExerciseSlot(ExerciseSlotsCompanion(
+              routineDayId: Value(dayId),
+              sortOrder: Value(i),
+              wgerExerciseId: Value(s.wgerExerciseId),
+              exerciseName: Value(s.exerciseName),
+              exerciseType: Value(s.exerciseType),
+              sets: Value(s.sets),
+              reps: Value(s.reps),
+              durationSeconds: Value(s.durationSeconds),
+              weightKg: Value(s.weightKg),
+            ));
+          }
+        }
+      });
+      state = const RoutineBuilderState();
+    } catch (_) {
+      state = state.copyWith(isSaving: false);
+      rethrow;
+    }
+  }
+
+  Future<void> loadForEdit(int routineId) async {
+    final db = ref.read(appDatabaseProvider);
+    final routine = await db.getRoutine(routineId);
+    if (routine == null) return;
+
+    final days = await db.getRoutineDays(routineId);
+    final weekdays = <int>{};
+    final slotsByDay = <int, List<SlotConfig>>{};
+
+    for (final day in days) {
+      weekdays.add(day.weekday);
+      final slots = await db.getSlotsForDay(day.id);
+      slotsByDay[day.weekday] = slots
+          .map((s) => SlotConfig(
+                exerciseName: s.exerciseName,
+                wgerExerciseId: s.wgerExerciseId,
+                exerciseType: s.exerciseType,
+                sets: s.sets,
+                reps: s.reps,
+                durationSeconds: s.durationSeconds,
+                weightKg: s.weightKg,
+              ))
+          .toList();
+    }
+
+    state = RoutineBuilderState(
+      editingRoutineId: routineId,
+      name: routine.name,
+      selectedWeekdays: weekdays,
+      slotsByDay: slotsByDay,
+    );
+  }
+
+  Future<void> update() async {
+    final id = state.editingRoutineId;
+    if (id == null || state.name.trim().isEmpty || state.isSaving) return;
+    state = state.copyWith(isSaving: true);
+
+    final db = ref.read(appDatabaseProvider);
+    try {
+      await db.transaction(() async {
+        await db.updateRoutine(id, RoutinesCompanion(name: Value(state.name.trim())));
+        await db.deleteRoutineDays(id);
+
+        final sortedDays = state.selectedWeekdays.toList()..sort();
+        for (final weekday in sortedDays) {
+          final dayId = await db.insertRoutineDay(RoutineDaysCompanion(
+            routineId: Value(id),
             weekday: Value(weekday),
             label: Value(_weekdayLabel(weekday)),
           ));

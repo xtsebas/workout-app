@@ -39,7 +39,9 @@ class _CreateRoutineScreenState extends ConsumerState<CreateRoutineScreen> {
     final builderState = ref.watch(routineBuilderProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('New Routine')),
+      appBar: AppBar(
+        title: Text(builderState.isEditing ? 'Edit Routine' : 'New Routine'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -107,7 +109,7 @@ class _CreateRoutineScreenState extends ConsumerState<CreateRoutineScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white),
                   )
-                : const Text('Save routine'),
+                : Text(builderState.isEditing ? 'Update routine' : 'Save routine'),
           ),
           const SizedBox(height: 32),
         ],
@@ -117,7 +119,13 @@ class _CreateRoutineScreenState extends ConsumerState<CreateRoutineScreen> {
 
   Future<void> _save(BuildContext context) async {
     try {
-      await ref.read(routineBuilderProvider.notifier).save();
+      final notifier = ref.read(routineBuilderProvider.notifier);
+      final isEditing = ref.read(routineBuilderProvider).isEditing;
+      if (isEditing) {
+        await notifier.update();
+      } else {
+        await notifier.save();
+      }
       if (context.mounted) context.pop();
     } catch (e) {
       if (context.mounted) {

@@ -70,6 +70,12 @@ class RoutineListScreen extends ConsumerWidget {
               onSetActive: () => ref
                   .read(activeRoutineNotifierProvider.notifier)
                   .setActive(routines[i].id),
+              onEdit: () async {
+                await ref
+                    .read(routineBuilderProvider.notifier)
+                    .loadForEdit(routines[i].id);
+                if (context.mounted) context.push('/routines/create');
+              },
               onDelete: () => _confirmDelete(context, ref, routines[i],
                   isActive: routines[i].id == activeId),
             )
@@ -131,12 +137,14 @@ class _RoutineCard extends StatelessWidget {
     required this.routine,
     required this.isActive,
     required this.onSetActive,
+    required this.onEdit,
     required this.onDelete,
   });
 
   final Routine routine;
   final bool isActive;
   final VoidCallback onSetActive;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -182,6 +190,8 @@ class _RoutineCard extends StatelessWidget {
             switch (action) {
               case _RoutineAction.setActive:
                 onSetActive();
+              case _RoutineAction.edit:
+                onEdit();
               case _RoutineAction.delete:
                 onDelete();
             }
@@ -194,6 +204,11 @@ class _RoutineCard extends StatelessWidget {
                     style: GoogleFonts.outfit(color: AppColors.textPrimary)),
               ),
             PopupMenuItem(
+              value: _RoutineAction.edit,
+              child: Text('Edit',
+                  style: GoogleFonts.outfit(color: AppColors.textPrimary)),
+            ),
+            PopupMenuItem(
               value: _RoutineAction.delete,
               child: Text('Delete',
                   style: GoogleFonts.outfit(color: AppColors.danger)),
@@ -205,7 +220,7 @@ class _RoutineCard extends StatelessWidget {
   }
 }
 
-enum _RoutineAction { setActive, delete }
+enum _RoutineAction { setActive, edit, delete }
 
 enum _AddAction { create, importPdf }
 

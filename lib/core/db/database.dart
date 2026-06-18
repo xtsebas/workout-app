@@ -219,6 +219,9 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deleteRoutine(int id) =>
       (delete(routines)..where((t) => t.id.equals(id))).go();
 
+  Future<void> deleteRoutineDays(int routineId) =>
+      (delete(routineDays)..where((t) => t.routineId.equals(routineId))).go();
+
   Future<int> insertRoutineDay(RoutineDaysCompanion day) =>
       into(routineDays).insert(day);
 

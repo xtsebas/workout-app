@@ -21,10 +21,15 @@ class TodayScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: dataAsync.when(
-          loading: () => const TodaySkeleton(),
-          error: (e, _) => Center(child: Text('Error: $e')),
-          data: (data) => _TodayContent(data: data),
+        child: RefreshIndicator(
+          color: AppColors.accent,
+          backgroundColor: AppColors.surface,
+          onRefresh: () async => ref.invalidate(todayDataProvider),
+          child: dataAsync.when(
+            loading: () => const TodaySkeleton(),
+            error: (e, _) => Center(child: Text('Error: $e')),
+            data: (data) => _TodayContent(data: data),
+          ),
         ),
       ),
     );
