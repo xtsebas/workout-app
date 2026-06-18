@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/db/database.dart';
+import '../../core/db/database_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/exercise_type.dart';
 import '../../shared/services/wger_service.dart';
@@ -78,13 +81,29 @@ class _ExerciseSearchScreenState
           ? _HintState()
           : _SearchResults(
               query: _query,
-              onSelect: (result) =>
-                  _showSlotConfig(context, result),
+              onSelect: (result) => _showSlotConfig(context, result),
+              onCreateCustom: (name) => _showCustomConfig(context, name),
             ),
     );
   }
 
-  void _showSlotConfig(BuildContext context, WgerSearchResult result) {
+  void _showCustomConfig(BuildContext context, String name) {
+    _showSlotConfig(
+      context,
+      WgerSearchResult(id: 0, name: name),
+      isCustom: true,
+    );
+  }
+
+  Future<void> _saveCustomExercise(String name, ExerciseType type) async {
+    final db = ref.read(appDatabaseProvider);
+    await db.insertCustomExercise(CustomExercisesCompanion(
+      name: Value(name),
+      exerciseType: Value(type),
+    ));
+  }
+
+  void _showSlotConfig(BuildContext context, WgerSearchResult result, {bool isCustom = false}) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -95,7 +114,11 @@ class _ExerciseSearchScreenState
       builder: (ctx) => _SlotConfigSheet(
         result: result,
         weekday: widget.weekday,
+        isCustom: isCustom,
         onAdd: (slot) {
+          if (isCustom) {
+            _saveCustomExercise(slot.exerciseName, slot.exerciseType);
+          }
           ref.read(routineBuilderProvider.notifier).addSlot(widget.weekday, slot);
           Navigator.of(ctx).pop();
           context.pop();
@@ -108,14 +131,20 @@ class _ExerciseSearchScreenState
 // ── Search results ────────────────────────────────────────────────────────────
 
 class _SearchResults extends ConsumerWidget {
-  const _SearchResults({required this.query, required this.onSelect});
+  const _SearchResults({
+    required this.query,
+    required this.onSelect,
+    required this.onCreateCustom,
+  });
 
   final String query;
   final void Function(WgerSearchResult) onSelect;
+  final void Function(String name) onCreateCustom;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final resultsAsync = ref.watch(exerciseSearchProvider(query));
+    final db = ref.watch(appDatabaseProvider);
 
     return resultsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -129,24 +158,42 @@ class _SearchResults extends ConsumerWidget {
           ),
         ),
       ),
-      data: (results) {
-        if (results.isEmpty) {
-          return Center(
-            child: Text(
-              'No results for "$query"',
-              style: GoogleFonts.outfit(
-                  fontSize: 14, color: AppColors.textSecondary),
-            ),
-          );
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: results.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (context, i) => _ResultTile(
-            result: results[i],
-            onTap: () => onSelect(results[i]),
-          ),
+      data: (wgerResults) {
+        return FutureBuilder<List<CustomExercise>>(
+          future: db.searchCustomExercises(query),
+          builder: (context, snap) {
+            final customResults = snap.data ?? [];
+            final customAsWger = customResults.map((c) =>
+                WgerSearchResult(id: 0, name: c.name, category: 'Custom')).toList();
+
+            final wgerNames = wgerResults.map((r) => r.name.toLowerCase()).toSet();
+            final deduped = customAsWger
+                .where((c) => !wgerNames.contains(c.name.toLowerCase()))
+                .toList();
+
+            final allResults = [...deduped, ...wgerResults];
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: allResults.length + 1,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, i) {
+                if (i == allResults.length) {
+                  return _CreateCustomTile(
+                    name: query,
+                    onTap: () => onCreateCustom(query),
+                  );
+                }
+                final r = allResults[i];
+                return _ResultTile(
+                  result: r,
+                  onTap: () => r.category == 'Custom'
+                      ? onCreateCustom(r.name)
+                      : onSelect(r),
+                );
+              },
+            );
+          },
         );
       },
     );
@@ -202,6 +249,64 @@ class _ResultTile extends StatelessWidget {
   }
 }
 
+class _CreateCustomTile extends StatelessWidget {
+  const _CreateCustomTile({required this.name, required this.onTap});
+
+  final String name;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.3), width: 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.accent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.add, color: AppColors.accent, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Create "$name"',
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                  Text(
+                    'Custom exercise',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _HintState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -223,11 +328,13 @@ class _SlotConfigSheet extends StatefulWidget {
     required this.result,
     required this.weekday,
     required this.onAdd,
+    this.isCustom = false,
   });
 
   final WgerSearchResult result;
   final int weekday;
   final void Function(SlotConfig) onAdd;
+  final bool isCustom;
 
   @override
   State<_SlotConfigSheet> createState() => _SlotConfigSheetState();
@@ -368,7 +475,7 @@ class _SlotConfigSheetState extends State<_SlotConfigSheet> {
     final sets = int.tryParse(_setsCtrl.text) ?? 3;
     widget.onAdd(SlotConfig(
       exerciseName: widget.result.name,
-      wgerExerciseId: widget.result.id,
+      wgerExerciseId: widget.isCustom ? null : widget.result.id,
       exerciseType: _type,
       sets: sets,
       reps: _type == ExerciseType.weights || _type == ExerciseType.bodyweight

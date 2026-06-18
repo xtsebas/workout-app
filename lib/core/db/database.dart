@@ -9,6 +9,7 @@ import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
 import '../../shared/models/exercise_type.dart';
 import 'tables/app_settings_table.dart';
+import 'tables/custom_exercises_table.dart';
 import 'tables/exercise_cache_table.dart';
 import 'tables/exercise_slots_table.dart';
 import 'tables/routine_days_table.dart';
@@ -26,12 +27,13 @@ part 'database.g.dart';
   WorkoutLogs,
   SetLogEntries,
   ExerciseCache,
+  CustomExercises,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -64,6 +66,9 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(setLogEntries, setLogEntries.remoteId);
             await m.addColumn(setLogEntries, setLogEntries.updatedAt);
             await m.addColumn(setLogEntries, setLogEntries.isSynced);
+          }
+          if (from < 3) {
+            await m.createTable(customExercises);
           }
         },
         beforeOpen: (details) async {
@@ -311,6 +316,18 @@ class AppDatabase extends _$AppDatabase {
           remoteId: Value(remoteId),
         ),
       );
+
+  // Custom exercises
+  Future<int> insertCustomExercise(CustomExercisesCompanion exercise) =>
+      into(customExercises).insertOnConflictUpdate(exercise);
+
+  Future<List<CustomExercise>> searchCustomExercises(String query) {
+    final q = '%${query.toLowerCase()}%';
+    return (select(customExercises)
+          ..where((t) => t.name.lower().like(q))
+          ..limit(20))
+        .get();
+  }
 
   // Exercise cache
   Future<CachedExercise?> getCachedExercise(int wgerId) =>
