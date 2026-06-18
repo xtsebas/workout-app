@@ -20,12 +20,30 @@ class RoutineListScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Routines'),
         actions: [
-          IconButton(
+          PopupMenuButton<_AddAction>(
             icon: const Icon(Icons.add),
-            onPressed: () {
-              ref.read(routineBuilderProvider.notifier).reset();
-              context.push('/routines/create');
+            color: AppColors.surface2,
+            onSelected: (action) {
+              switch (action) {
+                case _AddAction.create:
+                  ref.read(routineBuilderProvider.notifier).reset();
+                  context.push('/routines/create');
+                case _AddAction.importPdf:
+                  context.push('/routines/pdf-import');
+              }
             },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: _AddAction.create,
+                child: Text('Create routine',
+                    style: GoogleFonts.outfit(color: AppColors.textPrimary)),
+              ),
+              PopupMenuItem(
+                value: _AddAction.importPdf,
+                child: Text('Import from PDF',
+                    style: GoogleFonts.outfit(color: AppColors.textPrimary)),
+              ),
+            ],
           ),
         ],
       ),
@@ -184,6 +202,8 @@ class _RoutineCard extends StatelessWidget {
 }
 
 enum _RoutineAction { setActive, delete }
+
+enum _AddAction { create, importPdf }
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onCreate});

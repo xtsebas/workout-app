@@ -97,13 +97,7 @@ class RoutineBuilder extends _$RoutineBuilder {
   }
 
   Future<void> save() async {
-    // ignore: avoid_print
-    print('[SAVE] called — name="${state.name}", days=${state.selectedWeekdays}, slots=${state.slotsByDay.length}');
-    if (state.name.trim().isEmpty || state.isSaving) {
-      // ignore: avoid_print
-      print('[SAVE] early return: name empty=${state.name.trim().isEmpty}, isSaving=${state.isSaving}');
-      return;
-    }
+    if (state.name.trim().isEmpty || state.isSaving) return;
     state = state.copyWith(isSaving: true);
 
     final db = ref.read(appDatabaseProvider);
@@ -112,8 +106,6 @@ class RoutineBuilder extends _$RoutineBuilder {
         final routineId = await db.insertRoutine(
           RoutinesCompanion(name: Value(state.name.trim())),
         );
-        // ignore: avoid_print
-        print('[SAVE] routine inserted id=$routineId');
         final sortedDays = state.selectedWeekdays.toList()..sort();
         for (final weekday in sortedDays) {
           final dayId = await db.insertRoutineDay(RoutineDaysCompanion(
@@ -139,11 +131,7 @@ class RoutineBuilder extends _$RoutineBuilder {
         }
       });
       state = const RoutineBuilderState();
-      // ignore: avoid_print
-      print('[SAVE] done — state reset');
-    } catch (e, st) {
-      // ignore: avoid_print
-      print('[SAVE] ERROR: $e\n$st');
+    } catch (_) {
       state = state.copyWith(isSaving: false);
       rethrow;
     }

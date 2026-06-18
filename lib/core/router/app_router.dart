@@ -11,6 +11,7 @@ import '../../features/profile/profile_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/routines/create_routine_screen.dart';
 import '../../features/routines/exercise_search_screen.dart';
+import '../../features/routines/pdf_import_screen.dart';
 import '../../features/routines/routine_list_screen.dart';
 import '../../features/today/today_screen.dart';
 import '../../features/workout/active_workout_screen.dart';
@@ -63,6 +64,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/routines/exercise/search',
         builder: (context, state) =>
             ExerciseSearchScreen(weekday: state.extra! as int),
+      ),
+      GoRoute(
+        path: '/routines/pdf-import',
+        builder: (context, state) => const PdfImportScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

@@ -57,11 +57,6 @@ WgerService wgerService(Ref ref) {
       'User-Agent': 'WorkoutApp/1.0 (Flutter)',
     },
   ));
-  dio.interceptors.add(LogInterceptor(
-    requestBody: false,
-    responseBody: true,
-    logPrint: (o) => print('[WGER] $o'),
-  ));
   return WgerService(dio: dio, db: ref.watch(appDatabaseProvider));
 }
 
@@ -156,8 +151,6 @@ class WgerService {
 
   Future<List<WgerSearchResult>> searchExercises(String query) async {
     if (query.trim().isEmpty) return [];
-    // ignore: avoid_print
-    print('[WGER-SEARCH] called with query="$query"');
 
     // Primary: WGER autocomplete endpoint
     final fromSearch = await _searchViaAutocomplete(query);
