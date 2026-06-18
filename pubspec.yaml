@@ -35,6 +35,9 @@ dependencies:
   supabase_flutter: ^2.8.0
   flutter_dotenv: ^5.2.1
 
+  # Google Sign-In
+  google_sign_in: ^6.2.2
+
   # PDF import
   pdfrx: ^1.0.97
   file_picker: ^10.1.4

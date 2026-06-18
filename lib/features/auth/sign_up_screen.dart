@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/google_sign_in_button.dart';
 import 'auth_provider.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
@@ -131,6 +132,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Sign Up'),
+                  ),
+                  const SizedBox(height: 16),
+                  GoogleSignInButton(
+                    isLoading: authState.isLoading,
+                    onPressed: () => ref
+                        .read(authControllerProvider.notifier)
+                        .signInWithGoogle(),
                   ),
                   const SizedBox(height: 16),
                   Center(
