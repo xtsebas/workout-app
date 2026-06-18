@@ -44,7 +44,8 @@ class _TodayContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final today = data.today;
-    final weekdayName = _weekdayName(today.weekday);
+    final weekdayName = _weekdayName(data.selectedWeekday);
+    final isOverride = data.selectedWeekday != today.weekday;
     final monthDay =
         '${_monthName(today.month)} ${today.day}';
 
@@ -56,23 +57,53 @@ class _TodayContent extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  weekdayName,
-                  style: GoogleFonts.outfit(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                    height: 1.1,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            weekdayName,
+                            style: GoogleFonts.outfit(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                              height: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isOverride
+                                ? '$monthDay — swapped day'
+                                : monthDay,
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              color: isOverride
+                                  ? AppColors.accent
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isOverride)
+                      IconButton(
+                        icon: const Icon(Icons.close,
+                            color: AppColors.textSecondary, size: 20),
+                        onPressed: () => ref
+                            .read(weekdayOverrideProvider.notifier)
+                            .set(null),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  monthDay,
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textSecondary,
-                  ),
+                const SizedBox(height: 16),
+                _WeekdaySelector(
+                  selectedWeekday: data.selectedWeekday,
+                  onSelect: (wd) => ref
+                      .read(weekdayOverrideProvider.notifier)
+                      .set(wd == today.weekday ? null : wd),
                 ),
                 const SizedBox(height: 20),
                 _StatsRow(data: data),
@@ -460,6 +491,64 @@ class _EmptyDayCard extends StatelessWidget {
           color: AppColors.textSecondary,
         ),
       ),
+    );
+  }
+}
+
+class _WeekdaySelector extends StatelessWidget {
+  const _WeekdaySelector({required this.selectedWeekday, required this.onSelect});
+
+  final int selectedWeekday;
+  final void Function(int) onSelect;
+
+  static const _labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  @override
+  Widget build(BuildContext context) {
+    final todayWd = DateTime.now().weekday;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: List.generate(7, (i) {
+        final wd = i + 1;
+        final isSelected = wd == selectedWeekday;
+        final isToday = wd == todayWd;
+        return GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onSelect(wd);
+          },
+          child: Container(
+            width: 42,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.accent : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isSelected
+                    ? AppColors.accent
+                    : isToday
+                        ? AppColors.accent.withValues(alpha: 0.4)
+                        : AppColors.cardBorder,
+                width: isSelected ? 1.5 : 0.5,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                _labels[i],
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? AppColors.onAccent
+                      : isToday
+                          ? AppColors.accent
+                          : AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
     );
   }
 }
