@@ -18,9 +18,9 @@ jobs:
           java-version: '17'
 
       - name: Setup Flutter
-        uses: subosiro/flutter-action@v2.18.0
+        uses: flutter-actions/setup-flutter@v4
         with:
-          flutter-version: '3.32.4'
+          version: '3.32.4'
           channel: stable
 
       - name: Create .env
