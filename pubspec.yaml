@@ -39,6 +39,9 @@ dependencies:
   pdfrx: ^1.0.97
   file_picker: ^10.1.4
 
+  # Charts
+  fl_chart: ^0.70.2
+
   # Animations
   flutter_animate: ^4.5.2
 

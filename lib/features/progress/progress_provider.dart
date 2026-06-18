@@ -56,3 +56,12 @@ Future<MonthStats> monthStats(Ref ref, int year, int month) async {
 @riverpod
 Future<List<SetLogEntry>> logEntries(Ref ref, int logId) =>
     ref.watch(appDatabaseProvider).getEntriesForLog(logId);
+
+@riverpod
+Future<List<String>> exerciseNames(Ref ref) =>
+    ref.watch(appDatabaseProvider).getDistinctExerciseNames();
+
+@riverpod
+Future<List<({DateTime date, double maxWeight, int bestReps, double totalVolume})>>
+    exerciseHistory(Ref ref, String exerciseName) =>
+        ref.watch(appDatabaseProvider).getExerciseHistory(exerciseName);

@@ -10,6 +10,7 @@ import '../../features/auth/sign_up_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/routines/create_routine_screen.dart';
+import '../../features/progress/exercise_progress_screen.dart';
 import '../../features/routines/exercise_search_screen.dart';
 import '../../features/routines/pdf_import_screen.dart';
 import '../../features/routines/routine_list_screen.dart';
@@ -68,6 +69,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/routines/pdf-import',
         builder: (context, state) => const PdfImportScreen(),
+      ),
+      GoRoute(
+        path: '/progress/exercise',
+        builder: (context, state) =>
+            ExerciseProgressScreen(exerciseName: state.extra! as String),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

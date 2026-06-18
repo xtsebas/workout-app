@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -17,14 +18,23 @@ class ProgressScreen extends ConsumerStatefulWidget {
   ConsumerState<ProgressScreen> createState() => _ProgressScreenState();
 }
 
-class _ProgressScreenState extends ConsumerState<ProgressScreen> {
+class _ProgressScreenState extends ConsumerState<ProgressScreen>
+    with SingleTickerProviderStateMixin {
   late DateTime _selectedMonth;
+  late TabController _tabCtrl;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _selectedMonth = DateTime(now.year, now.month);
+    _tabCtrl = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
   }
 
   void _changeMonth(int delta) {
@@ -38,30 +48,74 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Progress'),
+        bottom: TabBar(
+          controller: _tabCtrl,
+          indicatorColor: AppColors.accent,
+          labelColor: AppColors.accent,
+          unselectedLabelColor: AppColors.textSecondary,
+          labelStyle: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500),
+          tabs: const [
+            Tab(text: 'Calendar'),
+            Tab(text: 'Exercises'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabCtrl,
+        children: [
+          _CalendarTab(
+            selectedMonth: _selectedMonth,
+            onChangeMonth: _changeMonth,
+          ),
+          const _ExercisesTab(),
+        ],
+      ),
+    );
+  }
+
+}
+
+// ── Calendar tab ─────────────────────────────────────────────────────────────
+
+class _CalendarTab extends ConsumerWidget {
+  const _CalendarTab({required this.selectedMonth, required this.onChangeMonth});
+
+  final DateTime selectedMonth;
+  final void Function(int delta) onChangeMonth;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(
-      monthStatsProvider(_selectedMonth.year, _selectedMonth.month),
+      monthStatsProvider(selectedMonth.year, selectedMonth.month),
     );
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Progress')),
-      body: statsAsync.when(
-        loading: () => const ProgressSkeleton(),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (stats) => ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+    return statsAsync.when(
+      loading: () => const ProgressSkeleton(),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (stats) => RefreshIndicator(
+        color: AppColors.accent,
+        backgroundColor: AppColors.surface,
+        onRefresh: () async =>
+            ref.invalidate(monthStatsProvider(selectedMonth.year, selectedMonth.month)),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: [
             _StatsStrip(stats: stats),
             const SizedBox(height: 24),
             _MonthSelector(
-              month: _selectedMonth,
-              onPrevious: () => _changeMonth(-1),
-              onNext: () => _changeMonth(1),
+              month: selectedMonth,
+              onPrevious: () => onChangeMonth(-1),
+              onNext: () => onChangeMonth(1),
             ),
             const SizedBox(height: 16),
             _Calendar(
-              month: _selectedMonth,
+              month: selectedMonth,
               workoutDates: stats.workoutDates,
-              onDayTap: (day) => _showDayDetail(context, stats.logs, day),
+              onDayTap: (day) => _showDayDetail(context, ref, stats.logs, day),
             ),
             const SizedBox(height: 28),
             _WorkoutHistory(logs: stats.logs),
@@ -72,7 +126,7 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
   }
 
   void _showDayDetail(
-      BuildContext context, List<WorkoutLog> logs, int day) {
+      BuildContext context, WidgetRef ref, List<WorkoutLog> logs, int day) {
     final dayLogs = logs.where((l) => l.date.day == day).toList();
     if (dayLogs.isEmpty) return;
 
@@ -83,6 +137,109 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => _DayDetailSheet(log: dayLogs.first),
+    );
+  }
+}
+
+// ── Exercises tab ────────────────────────────────────────────────────────────
+
+class _ExercisesTab extends ConsumerWidget {
+  const _ExercisesTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final namesAsync = ref.watch(exerciseNamesProvider);
+
+    return namesAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (names) {
+        if (names.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.show_chart,
+                      color: AppColors.textSecondary, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No exercise data yet',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Complete workouts to see your\nprogress charts here.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          color: AppColors.accent,
+          backgroundColor: AppColors.surface,
+          onRefresh: () async => ref.invalidate(exerciseNamesProvider),
+          child: ListView.separated(
+            padding: const EdgeInsets.all(20),
+            itemCount: names.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, i) => GestureDetector(
+              onTap: () => context.push('/progress/exercise', extra: names[i]),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.cardBorder, width: 0.5),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.show_chart,
+                          color: AppColors.accent, size: 18),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        names[i],
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right,
+                        color: AppColors.textSecondary, size: 18),
+                  ],
+                ),
+              ),
+            )
+                .animate()
+                .fadeIn(duration: 300.ms, delay: (40 * i).ms)
+                .slideX(begin: -0.02, end: 0, duration: 300.ms, delay: (40 * i).ms),
+          ),
+        );
+      },
     );
   }
 }

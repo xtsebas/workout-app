@@ -209,6 +209,48 @@ class AppDatabase extends _$AppDatabase {
     return streak;
   }
 
+  Future<List<String>> getDistinctExerciseNames() async {
+    final query = selectOnly(setLogEntries, distinct: true)
+      ..addColumns([setLogEntries.exerciseName])
+      ..orderBy([OrderingTerm.asc(setLogEntries.exerciseName)]);
+    final rows = await query.get();
+    return rows.map((r) => r.read(setLogEntries.exerciseName)!).toList();
+  }
+
+  Future<List<({DateTime date, double maxWeight, int bestReps, double totalVolume})>>
+      getExerciseHistory(String exerciseName) async {
+    final entries = await (select(setLogEntries)
+          ..where((t) => t.exerciseName.equals(exerciseName)))
+        .join([
+      innerJoin(workoutLogs, workoutLogs.id.equalsExp(setLogEntries.workoutLogId)),
+    ]).get();
+
+    final byDate = <DateTime, List<TypedResult>>{};
+    for (final row in entries) {
+      final log = row.readTable(workoutLogs);
+      final date = DateTime(log.date.year, log.date.month, log.date.day);
+      byDate.putIfAbsent(date, () => []).add(row);
+    }
+
+    final result = <({DateTime date, double maxWeight, int bestReps, double totalVolume})>[];
+    final sortedDates = byDate.keys.toList()..sort();
+    for (final date in sortedDates) {
+      double maxWeight = 0;
+      int bestReps = 0;
+      double totalVolume = 0;
+      for (final row in byDate[date]!) {
+        final entry = row.readTable(setLogEntries);
+        final w = entry.weightKg ?? 0;
+        final r = entry.reps ?? 0;
+        if (w > maxWeight) maxWeight = w;
+        if (r > bestReps) bestReps = r;
+        totalVolume += w * r;
+      }
+      result.add((date: date, maxWeight: maxWeight, bestReps: bestReps, totalVolume: totalVolume));
+    }
+    return result;
+  }
+
   // Routine CRUD
   Future<int> insertRoutine(RoutinesCompanion routine) =>
       into(routines).insert(routine);
