@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../../shared/models/exercise_type.dart';
+import '../../../shared/models/set_type.dart';
 import 'routine_days_table.dart';
 
 @DataClassName('ExerciseSlot')
@@ -12,8 +13,10 @@ class ExerciseSlots extends Table {
   IntColumn get wgerExerciseId => integer().nullable()();
   TextColumn get exerciseName => text()();
   TextColumn get exerciseType => textEnum<ExerciseType>()();
+  TextColumn get setType => textEnum<SetType>().withDefault(Constant(SetType.straight.name))();
   IntColumn get sets => integer()();
   IntColumn get reps => integer().nullable()();
+  TextColumn get repsPerSet => text().nullable()();
   IntColumn get durationSeconds => integer().nullable()();
   RealColumn get weightKg => real().nullable()();
   TextColumn get notes => text().nullable()();

@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/db/database.dart';
@@ -148,4 +149,16 @@ class ActiveWorkout extends _$ActiveWorkout {
   }
 
   void discard() => state = null;
+}
+
+@riverpod
+Future<Map<int, double?>> lastWeightsForExercise(
+    Ref ref, String exerciseName, int totalSets) async {
+  final db = ref.watch(appDatabaseProvider);
+  final sets = await db.getLastSetsForExercise(exerciseName, limit: totalSets);
+  final result = <int, double?>{};
+  for (final s in sets) {
+    result.putIfAbsent(s.setNumber, () => s.weightKg);
+  }
+  return result;
 }

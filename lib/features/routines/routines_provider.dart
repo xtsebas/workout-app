@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/db/database.dart';
 import '../../core/db/database_provider.dart';
 import '../../shared/models/exercise_type.dart';
+import '../../shared/models/set_type.dart';
 import '../today/today_provider.dart';
 
 part 'routines_provider.g.dart';
@@ -16,8 +17,10 @@ class SlotConfig {
     required this.exerciseName,
     this.wgerExerciseId,
     required this.exerciseType,
+    this.setType = SetType.straight,
     required this.sets,
     this.reps,
+    this.repsPerSet,
     this.durationSeconds,
     this.weightKg,
   });
@@ -25,8 +28,10 @@ class SlotConfig {
   final String exerciseName;
   final int? wgerExerciseId;
   final ExerciseType exerciseType;
+  final SetType setType;
   final int sets;
   final int? reps;
+  final List<int>? repsPerSet;
   final int? durationSeconds;
   final double? weightKg;
 }
@@ -128,8 +133,10 @@ class RoutineBuilder extends _$RoutineBuilder {
               wgerExerciseId: Value(s.wgerExerciseId),
               exerciseName: Value(s.exerciseName),
               exerciseType: Value(s.exerciseType),
+              setType: Value(s.setType),
               sets: Value(s.sets),
               reps: Value(s.reps),
+              repsPerSet: Value(s.repsPerSet?.join(',') ?? ''),
               durationSeconds: Value(s.durationSeconds),
               weightKg: Value(s.weightKg),
             ));
@@ -160,8 +167,12 @@ class RoutineBuilder extends _$RoutineBuilder {
                 exerciseName: s.exerciseName,
                 wgerExerciseId: s.wgerExerciseId,
                 exerciseType: s.exerciseType,
+                setType: s.setType,
                 sets: s.sets,
                 reps: s.reps,
+                repsPerSet: s.repsPerSet != null && s.repsPerSet!.isNotEmpty
+                    ? s.repsPerSet!.split(',').map(int.parse).toList()
+                    : null,
                 durationSeconds: s.durationSeconds,
                 weightKg: s.weightKg,
               ))
@@ -203,8 +214,10 @@ class RoutineBuilder extends _$RoutineBuilder {
               wgerExerciseId: Value(s.wgerExerciseId),
               exerciseName: Value(s.exerciseName),
               exerciseType: Value(s.exerciseType),
+              setType: Value(s.setType),
               sets: Value(s.sets),
               reps: Value(s.reps),
+              repsPerSet: Value(s.repsPerSet?.join(',') ?? ''),
               durationSeconds: Value(s.durationSeconds),
               weightKg: Value(s.weightKg),
             ));

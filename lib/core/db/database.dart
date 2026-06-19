@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../shared/models/exercise_type.dart';
+import '../../shared/models/set_type.dart';
 import 'connection/connection.dart';
 import 'tables/app_settings_table.dart';
 import 'tables/custom_exercises_table.dart';
@@ -27,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -63,6 +64,10 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 3) {
             await m.createTable(customExercises);
+          }
+          if (from < 4) {
+            await m.addColumn(exerciseSlots, exerciseSlots.setType);
+            await m.addColumn(exerciseSlots, exerciseSlots.repsPerSet);
           }
         },
         beforeOpen: (details) async {

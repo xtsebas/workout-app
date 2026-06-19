@@ -10,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/db/database.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/exercise_type.dart';
+import '../../shared/models/set_type.dart';
 import 'workout_provider.dart';
 
 class ActiveWorkoutScreen extends ConsumerStatefulWidget {
@@ -386,15 +387,23 @@ class _ExerciseLogCard extends StatelessWidget {
   }
 
   String _plannedLabel(ExerciseSlot s) {
+    final pyramid = s.setType != SetType.straight
+        ? ' (${s.setType.label})'
+        : '';
     switch (s.exerciseType) {
       case ExerciseType.weights:
+        if (s.repsPerSet != null && s.repsPerSet!.isNotEmpty) {
+          return 'Planned: ${s.repsPerSet}$pyramid'.trim();
+        }
         final reps = s.reps != null ? '${s.reps} reps' : '';
-        final weight =
-            s.weightKg != null ? ' @ ${s.weightKg}kg' : '';
-        return 'Planned: ${s.sets} × $reps$weight'.trim();
+        final weight = s.weightKg != null ? ' @ ${s.weightKg}kg' : '';
+        return 'Planned: ${s.sets} × $reps$weight$pyramid'.trim();
       case ExerciseType.bodyweight:
+        if (s.repsPerSet != null && s.repsPerSet!.isNotEmpty) {
+          return 'Planned: ${s.repsPerSet}$pyramid'.trim();
+        }
         final reps = s.reps != null ? '${s.reps} reps' : '';
-        return 'Planned: ${s.sets} × $reps'.trim();
+        return 'Planned: ${s.sets} × $reps$pyramid'.trim();
       case ExerciseType.cardio:
       case ExerciseType.timed:
         final dur =
@@ -514,7 +523,7 @@ class _SmallButton extends StatelessWidget {
 
 // ── Set input bottom sheet ───────────────────────────────────────────────────
 
-class _SetInputSheet extends StatefulWidget {
+class _SetInputSheet extends ConsumerStatefulWidget {
   const _SetInputSheet({
     required this.slot,
     required this.setNumber,
@@ -526,10 +535,10 @@ class _SetInputSheet extends StatefulWidget {
   final void Function(SetDraft) onConfirm;
 
   @override
-  State<_SetInputSheet> createState() => _SetInputSheetState();
+  ConsumerState<_SetInputSheet> createState() => _SetInputSheetState();
 }
 
-class _SetInputSheetState extends State<_SetInputSheet> {
+class _SetInputSheetState extends ConsumerState<_SetInputSheet> {
   final _repsCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
   final _durationCtrl = TextEditingController();
@@ -546,9 +555,27 @@ class _SetInputSheetState extends State<_SetInputSheet> {
     super.dispose();
   }
 
+  String? _targetReps() {
+    final slot = widget.slot;
+    if (slot.repsPerSet != null && slot.repsPerSet!.isNotEmpty) {
+      final parts = slot.repsPerSet!.split(',');
+      final idx = widget.setNumber - 1;
+      if (idx < parts.length) return parts[idx].trim();
+    }
+    return slot.reps?.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final lastWeights = ref.watch(lastWeightsForExerciseProvider(
+      widget.slot.exerciseName,
+      widget.slot.sets,
+    ));
+    final lastWeight = lastWeights.valueOrNull?[widget.setNumber];
+    final lastWeightHint = lastWeight != null
+        ? '${lastWeight % 1 == 0 ? lastWeight.toInt() : lastWeight}'
+        : widget.slot.weightKg?.toString();
 
     return Padding(
       padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottom),
@@ -564,8 +591,19 @@ class _SetInputSheetState extends State<_SetInputSheet> {
               color: AppColors.textPrimary,
             ),
           ),
+          if (lastWeight != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Last: ${lastWeight % 1 == 0 ? lastWeight.toInt() : lastWeight} kg',
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  color: AppColors.accent,
+                ),
+              ),
+            ),
           const SizedBox(height: 20),
-          ..._buildFields(),
+          ..._buildFields(lastWeightHint),
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _submit,
@@ -576,7 +614,8 @@ class _SetInputSheetState extends State<_SetInputSheet> {
     );
   }
 
-  List<Widget> _buildFields() {
+  List<Widget> _buildFields(String? weightHint) {
+    final repsHint = _targetReps();
     switch (widget.slot.exerciseType) {
       case ExerciseType.weights:
         return [
@@ -586,7 +625,7 @@ class _SetInputSheetState extends State<_SetInputSheet> {
                 child: _NumberField(
                   controller: _repsCtrl,
                   label: 'Reps',
-                  hint: widget.slot.reps?.toString(),
+                  hint: repsHint,
                   decimal: false,
                 ),
               ),
@@ -595,7 +634,7 @@ class _SetInputSheetState extends State<_SetInputSheet> {
                 child: _NumberField(
                   controller: _weightCtrl,
                   label: 'Weight (kg)',
-                  hint: widget.slot.weightKg?.toString(),
+                  hint: weightHint,
                   decimal: true,
                 ),
               ),
@@ -607,7 +646,7 @@ class _SetInputSheetState extends State<_SetInputSheet> {
           _NumberField(
             controller: _repsCtrl,
             label: 'Reps',
-            hint: widget.slot.reps?.toString(),
+            hint: repsHint,
             decimal: false,
           ),
         ];

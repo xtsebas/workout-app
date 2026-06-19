@@ -10,6 +10,7 @@ import '../../core/db/database.dart';
 import '../../core/db/database_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/exercise_type.dart';
+import '../../shared/models/set_type.dart';
 import '../../shared/services/wger_service.dart';
 import 'routines_provider.dart';
 
@@ -342,18 +343,50 @@ class _SlotConfigSheet extends StatefulWidget {
 
 class _SlotConfigSheetState extends State<_SlotConfigSheet> {
   ExerciseType _type = ExerciseType.weights;
+  SetType _setType = SetType.straight;
   final _setsCtrl = TextEditingController(text: '3');
   final _repsCtrl = TextEditingController(text: '10');
   final _durationCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
+  List<TextEditingController> _perSetCtrls = [];
+
+  bool get _usesReps =>
+      _type == ExerciseType.weights || _type == ExerciseType.bodyweight;
+
+  bool get _isPyramid => _setType != SetType.straight;
+
+  @override
+  void initState() {
+    super.initState();
+    _setsCtrl.addListener(_syncPerSetCtrls);
+    _syncPerSetCtrls();
+  }
 
   @override
   void dispose() {
+    _setsCtrl.removeListener(_syncPerSetCtrls);
     _setsCtrl.dispose();
     _repsCtrl.dispose();
     _durationCtrl.dispose();
     _weightCtrl.dispose();
+    for (final c in _perSetCtrls) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  void _syncPerSetCtrls() {
+    final count = int.tryParse(_setsCtrl.text) ?? 3;
+    if (count == _perSetCtrls.length) return;
+    final old = _perSetCtrls;
+    _perSetCtrls = List.generate(count, (i) {
+      if (i < old.length) return old[i];
+      return TextEditingController(text: '${10 - i * 2}');
+    });
+    for (var i = count; i < old.length; i++) {
+      old[i].dispose();
+    }
+    if (mounted) setState(() {});
   }
 
   @override
@@ -362,125 +395,203 @@ class _SlotConfigSheetState extends State<_SlotConfigSheet> {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.result.name,
-            style: GoogleFonts.outfit(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Type selector
-          Text('Type',
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.result.name,
               style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: ExerciseType.values.map((t) {
-              final selected = _type == t;
-              return GestureDetector(
-                onTap: () => setState(() => _type = t),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 120),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.accent
-                        : AppColors.surface2,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: selected
-                          ? AppColors.accent
-                          : AppColors.divider,
-                    ),
-                  ),
-                  child: Text(
-                    t.name,
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: selected
-                          ? AppColors.onAccent
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-
-          // Sets + reps/duration
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _setsCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Sets'),
-                ),
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
-              const SizedBox(width: 12),
-              if (_type == ExerciseType.weights ||
-                  _type == ExerciseType.bodyweight)
-                Expanded(
-                  child: TextField(
-                    controller: _repsCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Reps'),
+            ),
+            const SizedBox(height: 20),
+
+            // Exercise type selector
+            Text('Type',
+                style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: ExerciseType.values.map((t) {
+                final selected = _type == t;
+                return GestureDetector(
+                  onTap: () => setState(() => _type = t),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: selected ? AppColors.accent : AppColors.surface2,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: selected ? AppColors.accent : AppColors.divider,
+                      ),
+                    ),
+                    child: Text(
+                      t.name,
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: selected
+                            ? AppColors.onAccent
+                            : AppColors.textSecondary,
+                      ),
+                    ),
                   ),
-                )
-              else
+                );
+              }).toList(),
+            ),
+
+            // Set type selector (only for weights/bodyweight)
+            if (_usesReps) ...[
+              const SizedBox(height: 20),
+              Text('Set scheme',
+                  style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: SetType.values.map((st) {
+                  final selected = _setType == st;
+                  return GestureDetector(
+                    onTap: () => setState(() => _setType = st),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color:
+                            selected ? AppColors.accent : AppColors.surface2,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color:
+                              selected ? AppColors.accent : AppColors.divider,
+                        ),
+                      ),
+                      child: Text(
+                        st.label,
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: selected
+                              ? AppColors.onAccent
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: 20),
+
+            // Sets count
+            Row(
+              children: [
                 Expanded(
                   child: TextField(
-                    controller: _durationCtrl,
+                    controller: _setsCtrl,
                     keyboardType: TextInputType.number,
-                    decoration:
-                        const InputDecoration(labelText: 'Duration (s)'),
+                    decoration: const InputDecoration(labelText: 'Sets'),
                   ),
                 ),
+                const SizedBox(width: 12),
+                if (!_usesReps)
+                  Expanded(
+                    child: TextField(
+                      controller: _durationCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration:
+                          const InputDecoration(labelText: 'Duration (s)'),
+                    ),
+                  )
+                else if (!_isPyramid)
+                  Expanded(
+                    child: TextField(
+                      controller: _repsCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Reps'),
+                    ),
+                  ),
+              ],
+            ),
+
+            // Per-set reps for pyramid
+            if (_isPyramid && _usesReps) ...[
+              const SizedBox(height: 16),
+              Text('Reps per set',
+                  style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              ...List.generate(_perSetCtrls.length, (i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: TextField(
+                      controller: _perSetCtrls[i],
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Set ${i + 1}',
+                        isDense: true,
+                      ),
+                    ),
+                  )),
             ],
-          ),
-          if (_type == ExerciseType.weights) ...[
-            const SizedBox(height: 12),
-            TextField(
-              controller: _weightCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration:
-                  const InputDecoration(labelText: 'Default weight (kg, optional)'),
+
+            if (_type == ExerciseType.weights) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _weightCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Default weight (kg, optional)'),
+              ),
+            ],
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _submit,
+              child: Text('Add to ${_weekdayLabel(widget.weekday)}'),
             ),
           ],
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _submit,
-            child: Text('Add to ${_weekdayLabel(widget.weekday)}'),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   void _submit() {
     final sets = int.tryParse(_setsCtrl.text) ?? 3;
+    List<int>? repsPerSet;
+    int? reps;
+
+    if (_usesReps) {
+      if (_isPyramid) {
+        repsPerSet = _perSetCtrls
+            .map((c) => int.tryParse(c.text) ?? 0)
+            .toList();
+        reps = repsPerSet.isNotEmpty ? repsPerSet.first : null;
+      } else {
+        reps = int.tryParse(_repsCtrl.text);
+      }
+    }
+
     widget.onAdd(SlotConfig(
       exerciseName: widget.result.name,
       wgerExerciseId: widget.isCustom ? null : widget.result.id,
       exerciseType: _type,
+      setType: _usesReps ? _setType : SetType.straight,
       sets: sets,
-      reps: _type == ExerciseType.weights || _type == ExerciseType.bodyweight
-          ? int.tryParse(_repsCtrl.text)
-          : null,
+      reps: reps,
+      repsPerSet: repsPerSet,
       durationSeconds:
           _type == ExerciseType.cardio || _type == ExerciseType.timed
               ? int.tryParse(_durationCtrl.text)
