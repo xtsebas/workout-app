@@ -25,36 +25,21 @@ class WorkoutApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (kIsWeb) {
-      return MaterialApp(
-        title: 'Workout',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.dark,
-        home: const _WebWrapper(),
-      );
-    }
-
     final router = ref.watch(appRouterProvider);
-    ref.watch(syncServiceProvider);
+    if (!kIsWeb) ref.watch(syncServiceProvider);
 
     return MaterialApp.router(
       title: 'Workout',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       routerConfig: router,
+      builder: (context, child) {
+        if (kIsWeb) {
+          final width = MediaQuery.of(context).size.width;
+          if (width > 600) return const MobileOnlyScreen();
+        }
+        return child!;
+      },
     );
-  }
-}
-
-class _WebWrapper extends StatelessWidget {
-  const _WebWrapper();
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width > 600) {
-      return const MobileOnlyScreen();
-    }
-    return const MobileOnlyScreen();
   }
 }
