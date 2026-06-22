@@ -23,13 +23,12 @@ class ActiveWorkoutScreen extends ConsumerStatefulWidget {
 
 class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   late Timer _timer;
-  int _elapsedSeconds = 0;
 
   @override
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _elapsedSeconds++);
+      if (mounted) setState(() {});
     });
   }
 
@@ -39,10 +38,11 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     super.dispose();
   }
 
-  String get _timerLabel {
-    final h = _elapsedSeconds ~/ 3600;
-    final m = (_elapsedSeconds % 3600) ~/ 60;
-    final s = _elapsedSeconds % 60;
+  String _timerLabel(DateTime startedAt) {
+    final elapsed = DateTime.now().difference(startedAt).inSeconds;
+    final h = elapsed ~/ 3600;
+    final m = (elapsed % 3600) ~/ 60;
+    final s = elapsed % 60;
     if (h > 0) {
       return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
     }
@@ -69,7 +69,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           onPressed: () => _confirmDiscard(context),
         ),
         title: Text(
-          _timerLabel,
+          _timerLabel(workoutState.startedAt),
           style: GoogleFonts.outfit(
             fontSize: 22,
             fontWeight: FontWeight.w600,
