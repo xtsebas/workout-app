@@ -6,7 +6,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/db/database.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../features/auth/sign_in_screen.dart';
-import '../../features/auth/sign_up_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/routines/create_routine_screen.dart';
@@ -28,8 +27,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
       final hasSession = Supabase.instance.client.auth.currentSession != null;
-      final isAuthRoute = state.matchedLocation == '/sign-in' ||
-          state.matchedLocation == '/sign-up';
+      final isAuthRoute = state.matchedLocation == '/sign-in';
 
       if (!hasSession && !isAuthRoute) return '/sign-in';
       if (hasSession && isAuthRoute) return '/';
@@ -39,10 +37,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/sign-in',
         builder: (context, state) => const SignInScreen(),
-      ),
-      GoRoute(
-        path: '/sign-up',
-        builder: (context, state) => const SignUpScreen(),
       ),
       GoRoute(
         path: '/workout/active',
