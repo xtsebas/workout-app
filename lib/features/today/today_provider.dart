@@ -27,6 +27,10 @@ class TodayData {
 }
 
 @riverpod
+Future<WorkoutLog?> incompleteWorkout(Ref ref) =>
+    ref.watch(appDatabaseProvider).getIncompleteWorkout();
+
+@riverpod
 class WeekdayOverride extends _$WeekdayOverride {
   @override
   int? build() => null;

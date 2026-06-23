@@ -280,6 +280,40 @@ class AppDatabase extends _$AppDatabase {
   Future<int> insertExerciseSlot(ExerciseSlotsCompanion slot) =>
       into(exerciseSlots).insert(slot);
 
+  // In-progress workout
+  Future<WorkoutLog?> getIncompleteWorkout() =>
+      (select(workoutLogs)
+            ..where((t) => t.isCompleted.equals(false))
+            ..orderBy([(t) => OrderingTerm.desc(t.date)])
+            ..limit(1))
+          .getSingleOrNull();
+
+  Future<void> completeWorkoutLog(int id, int durationMinutes) =>
+      (update(workoutLogs)..where((t) => t.id.equals(id))).write(
+        WorkoutLogsCompanion(
+          isCompleted: const Value(true),
+          durationMinutes: Value(durationMinutes),
+        ),
+      );
+
+  Future<void> deleteWorkoutLog(int id) =>
+      (delete(workoutLogs)..where((t) => t.id.equals(id))).go();
+
+  Future<void> deleteLastSetEntry(int logId, int slotOrder) async {
+    final entries = await (select(setLogEntries)
+          ..where((t) =>
+              t.workoutLogId.equals(logId) &
+              t.exerciseSlotOrder.equals(slotOrder))
+          ..orderBy([(t) => OrderingTerm.desc(t.setNumber)])
+          ..limit(1))
+        .get();
+    if (entries.isNotEmpty) {
+      await (delete(setLogEntries)
+            ..where((t) => t.id.equals(entries.first.id)))
+          .go();
+    }
+  }
+
   // Sync methods
   Future<List<WorkoutLog>> getUnsyncedLogs() =>
       (select(workoutLogs)

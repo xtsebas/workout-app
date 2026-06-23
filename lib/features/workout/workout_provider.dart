@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/db/database.dart';
 import '../../core/db/database_provider.dart';
+import '../today/today_provider.dart';
 
 part 'workout_provider.g.dart';
 
@@ -43,6 +44,7 @@ class SetDraft {
 
 class ActiveWorkoutState {
   const ActiveWorkoutState({
+    required this.logId,
     required this.startedAt,
     this.routineId,
     required this.slots,
@@ -50,11 +52,10 @@ class ActiveWorkoutState {
     this.isSaving = false,
   });
 
+  final int logId;
   final DateTime startedAt;
   final int? routineId;
   final List<ExerciseSlot> slots;
-
-  /// Maps exerciseSlot.id → list of completed sets for that exercise.
   final Map<int, List<SetDraft>> draftSets;
   final bool isSaving;
 
@@ -63,6 +64,7 @@ class ActiveWorkoutState {
     bool? isSaving,
   }) =>
       ActiveWorkoutState(
+        logId: logId,
         startedAt: startedAt,
         routineId: routineId,
         slots: slots,
@@ -76,8 +78,18 @@ class ActiveWorkout extends _$ActiveWorkout {
   @override
   ActiveWorkoutState? build() => null;
 
-  void start({required List<ExerciseSlot> slots, int? routineId}) {
+  Future<void> start({required List<ExerciseSlot> slots, int? routineId}) async {
+    final db = ref.read(appDatabaseProvider);
+    final logId = await db.createWorkoutLog(WorkoutLogsCompanion(
+      date: Value(DateTime.now()),
+      routineId: Value(routineId),
+      weekday: Value(DateTime.now().weekday),
+      durationMinutes: const Value(0),
+      isCompleted: const Value(false),
+    ));
+
     state = ActiveWorkoutState(
+      logId: logId,
       startedAt: DateTime.now(),
       routineId: routineId,
       slots: slots,
@@ -85,9 +97,52 @@ class ActiveWorkout extends _$ActiveWorkout {
     );
   }
 
-  void addSet(int slotId, SetDraft draft) {
+  Future<void> restore(WorkoutLog log, List<ExerciseSlot> slots) async {
+    final db = ref.read(appDatabaseProvider);
+    final entries = await db.getEntriesForLog(log.id);
+
+    final draftSets = <int, List<SetDraft>>{for (final s in slots) s.id: []};
+    for (final entry in entries) {
+      final slot = slots.where((s) => s.sortOrder == entry.exerciseSlotOrder).firstOrNull;
+      if (slot == null) continue;
+      draftSets[slot.id]!.add(SetDraft(
+        setNumber: entry.setNumber,
+        reps: entry.reps,
+        weightKg: entry.weightKg,
+        durationSeconds: entry.durationSeconds,
+        distanceKm: entry.distanceKm,
+        heartRate: entry.heartRate,
+      ));
+    }
+
+    state = ActiveWorkoutState(
+      logId: log.id,
+      startedAt: log.date,
+      routineId: log.routineId,
+      slots: slots,
+      draftSets: draftSets,
+    );
+  }
+
+  Future<void> addSet(int slotId, SetDraft draft) async {
     final current = state;
     if (current == null) return;
+
+    final slot = current.slots.firstWhere((s) => s.id == slotId);
+    final db = ref.read(appDatabaseProvider);
+    await db.insertSetEntry(SetLogEntriesCompanion(
+      workoutLogId: Value(current.logId),
+      exerciseSlotOrder: Value(slot.sortOrder),
+      exerciseName: Value(slot.exerciseName),
+      exerciseType: Value(slot.exerciseType),
+      setNumber: Value(draft.setNumber),
+      reps: Value(draft.reps),
+      weightKg: Value(draft.weightKg),
+      durationSeconds: Value(draft.durationSeconds),
+      distanceKm: Value(draft.distanceKm),
+      heartRate: Value(draft.heartRate),
+    ));
+
     final updated = List<SetDraft>.from(current.draftSets[slotId] ?? [])
       ..add(draft);
     state = current.copyWith(
@@ -95,13 +150,19 @@ class ActiveWorkout extends _$ActiveWorkout {
     );
   }
 
-  void removeLastSet(int slotId) {
+  Future<void> removeLastSet(int slotId) async {
     final current = state;
     if (current == null) return;
-    final updated = List<SetDraft>.from(current.draftSets[slotId] ?? []);
-    if (updated.isNotEmpty) updated.removeLast();
+    final sets = List<SetDraft>.from(current.draftSets[slotId] ?? []);
+    if (sets.isEmpty) return;
+
+    final slot = current.slots.firstWhere((s) => s.id == slotId);
+    final db = ref.read(appDatabaseProvider);
+    await db.deleteLastSetEntry(current.logId, slot.sortOrder);
+
+    sets.removeLast();
     state = current.copyWith(
-      draftSets: Map.from(current.draftSets)..[slotId] = updated,
+      draftSets: Map.from(current.draftSets)..[slotId] = sets,
     );
   }
 
@@ -114,41 +175,23 @@ class ActiveWorkout extends _$ActiveWorkout {
     final elapsed = DateTime.now().difference(current.startedAt);
 
     try {
-      await db.transaction(() async {
-        final logId = await db.createWorkoutLog(WorkoutLogsCompanion(
-          date: Value(DateTime.now()),
-          routineId: Value(current.routineId),
-          weekday: Value(DateTime.now().weekday),
-          durationMinutes: Value(elapsed.inMinutes),
-          isCompleted: const Value(true),
-        ));
-
-        for (final slot in current.slots) {
-          final sets = current.draftSets[slot.id] ?? [];
-          for (final draft in sets) {
-            await db.insertSetEntry(SetLogEntriesCompanion(
-              workoutLogId: Value(logId),
-              exerciseSlotOrder: Value(slot.sortOrder),
-              exerciseName: Value(slot.exerciseName),
-              exerciseType: Value(slot.exerciseType),
-              setNumber: Value(draft.setNumber),
-              reps: Value(draft.reps),
-              weightKg: Value(draft.weightKg),
-              durationSeconds: Value(draft.durationSeconds),
-              distanceKm: Value(draft.distanceKm),
-              heartRate: Value(draft.heartRate),
-            ));
-          }
-        }
-      });
+      await db.completeWorkoutLog(current.logId, elapsed.inMinutes);
       state = null;
+      ref.invalidate(incompleteWorkoutProvider);
     } catch (_) {
       state = current.copyWith(isSaving: false);
       rethrow;
     }
   }
 
-  void discard() => state = null;
+  Future<void> discard() async {
+    final current = state;
+    if (current == null) return;
+    final db = ref.read(appDatabaseProvider);
+    await db.deleteWorkoutLog(current.logId);
+    state = null;
+    ref.invalidate(incompleteWorkoutProvider);
+  }
 }
 
 @riverpod

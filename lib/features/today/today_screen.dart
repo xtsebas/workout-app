@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/db/database.dart';
+import '../../core/db/database_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/exercise_type.dart';
 import '../../shared/widgets/skeleton_loader.dart';
@@ -107,7 +108,11 @@ class _TodayContent extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
                 _StatsRow(data: data),
-                const SizedBox(height: 28),
+                const SizedBox(height: 16),
+                _IncompleteWorkoutBanner(
+                  onContinue: (log) => _continueWorkout(context, ref, log),
+                ),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -206,20 +211,31 @@ class _TodayContent extends ConsumerWidget {
     );
   }
 
-  void _launchWorkout(BuildContext context, WidgetRef ref) {
-    ref.read(activeWorkoutProvider.notifier).start(
+  Future<void> _launchWorkout(BuildContext context, WidgetRef ref) async {
+    await ref.read(activeWorkoutProvider.notifier).start(
           slots: data.slots,
           routineId: data.routine?.id,
         );
-    context.push('/workout/active');
+    if (context.mounted) context.push('/workout/active');
   }
 
-  void _launchFreeWorkout(BuildContext context, WidgetRef ref) {
-    ref.read(activeWorkoutProvider.notifier).start(
+  Future<void> _launchFreeWorkout(BuildContext context, WidgetRef ref) async {
+    await ref.read(activeWorkoutProvider.notifier).start(
           slots: [],
           routineId: null,
         );
-    context.push('/workout/active');
+    if (context.mounted) context.push('/workout/active');
+  }
+
+  Future<void> _continueWorkout(BuildContext context, WidgetRef ref, WorkoutLog log) async {
+    final db = ref.read(appDatabaseProvider);
+    List<ExerciseSlot> slots = [];
+    if (log.routineId != null) {
+      final day = await db.getDayForWeekday(log.routineId!, log.weekday);
+      if (day != null) slots = await db.getSlotsForDay(day.id);
+    }
+    await ref.read(activeWorkoutProvider.notifier).restore(log, slots);
+    if (context.mounted) context.push('/workout/active');
   }
 }
 
@@ -489,6 +505,71 @@ class _EmptyDayCard extends StatelessWidget {
         style: GoogleFonts.outfit(
           fontSize: 14,
           color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _IncompleteWorkoutBanner extends ConsumerWidget {
+  const _IncompleteWorkoutBanner({required this.onContinue});
+
+  final void Function(WorkoutLog log) onContinue;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final incompleteAsync = ref.watch(incompleteWorkoutProvider);
+    final log = incompleteAsync.valueOrNull;
+    if (log == null) return const SizedBox.shrink();
+
+    final elapsed = DateTime.now().difference(log.date);
+    final label = elapsed.inMinutes < 60
+        ? '${elapsed.inMinutes} min ago'
+        : '${elapsed.inHours}h ago';
+
+    return GestureDetector(
+      onTap: () => onContinue(log),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.accent.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.accent, width: 1),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.play_circle_fill,
+                color: AppColors.accent, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Workout in progress',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    'Started $label',
+                    style: GoogleFonts.outfit(
+                        fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              'Continue',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.accent,
+              ),
+            ),
+          ],
         ),
       ),
     );

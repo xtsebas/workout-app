@@ -106,7 +106,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                     slot: slot,
                     sets: sets,
                     onAddSet: () => _showSetInput(context, slot, sets.length),
-                    onRemoveSet: () => ref
+                    onRemoveSet: () async => ref
                         .read(activeWorkoutProvider.notifier)
                         .removeLastSet(slot.id),
                     onTapDetail: () =>
@@ -187,10 +187,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           ),
         ],
       ),
-    ).then((confirmed) {
+    ).then((confirmed) async {
       if (confirmed == true && context.mounted) {
-        ref.read(activeWorkoutProvider.notifier).discard();
-        context.go('/');
+        await ref.read(activeWorkoutProvider.notifier).discard();
+        if (context.mounted) context.go('/');
       }
     });
   }
@@ -206,10 +206,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       builder: (ctx) => _SetInputSheet(
         slot: slot,
         setNumber: setIndex + 1,
-        onConfirm: (draft) {
+        onConfirm: (draft) async {
           HapticFeedback.mediumImpact();
-          ref.read(activeWorkoutProvider.notifier).addSet(slot.id, draft);
-          Navigator.of(ctx).pop();
+          await ref.read(activeWorkoutProvider.notifier).addSet(slot.id, draft);
+          if (ctx.mounted) Navigator.of(ctx).pop();
         },
       ),
     );
