@@ -23,6 +23,7 @@ class SlotConfig {
     this.repsPerSet,
     this.durationSeconds,
     this.weightKg,
+    this.isPerSide = false,
   });
 
   final String exerciseName;
@@ -34,6 +35,7 @@ class SlotConfig {
   final List<int>? repsPerSet;
   final int? durationSeconds;
   final double? weightKg;
+  final bool isPerSide;
 }
 
 // ── RoutineBuilderState ───────────────────────────────────────────────────────
@@ -139,6 +141,7 @@ class RoutineBuilder extends _$RoutineBuilder {
               repsPerSet: Value(s.repsPerSet?.join(',') ?? ''),
               durationSeconds: Value(s.durationSeconds),
               weightKg: Value(s.weightKg),
+              isPerSide: Value(s.isPerSide),
             ));
           }
         }
@@ -175,6 +178,7 @@ class RoutineBuilder extends _$RoutineBuilder {
                     : null,
                 durationSeconds: s.durationSeconds,
                 weightKg: s.weightKg,
+                isPerSide: s.isPerSide,
               ))
           .toList();
     }
@@ -220,6 +224,7 @@ class RoutineBuilder extends _$RoutineBuilder {
               repsPerSet: Value(s.repsPerSet?.join(',') ?? ''),
               durationSeconds: Value(s.durationSeconds),
               weightKg: Value(s.weightKg),
+              isPerSide: Value(s.isPerSide),
             ));
           }
         }

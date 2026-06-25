@@ -390,13 +390,14 @@ class _ExerciseLogCard extends StatelessWidget {
     final pyramid = s.setType != SetType.straight
         ? ' (${s.setType.label})'
         : '';
+    final perSide = s.isPerSide ? '/side' : '';
     switch (s.exerciseType) {
       case ExerciseType.weights:
         if (s.repsPerSet != null && s.repsPerSet!.isNotEmpty) {
           return 'Planned: ${s.repsPerSet}$pyramid'.trim();
         }
         final reps = s.reps != null ? '${s.reps} reps' : '';
-        final weight = s.weightKg != null ? ' @ ${s.weightKg}kg' : '';
+        final weight = s.weightKg != null ? ' @ ${s.weightKg}kg$perSide' : '';
         return 'Planned: ${s.sets} × $reps$weight$pyramid'.trim();
       case ExerciseType.bodyweight:
         if (s.repsPerSet != null && s.repsPerSet!.isNotEmpty) {
@@ -595,7 +596,7 @@ class _SetInputSheetState extends ConsumerState<_SetInputSheet> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                'Last: ${lastWeight % 1 == 0 ? lastWeight.toInt() : lastWeight} kg',
+                'Last: ${lastWeight % 1 == 0 ? lastWeight.toInt() : lastWeight} kg${widget.slot.isPerSide ? '/side' : ''}',
                 style: GoogleFonts.outfit(
                   fontSize: 13,
                   color: AppColors.accent,
@@ -633,7 +634,7 @@ class _SetInputSheetState extends ConsumerState<_SetInputSheet> {
               Expanded(
                 child: _NumberField(
                   controller: _weightCtrl,
-                  label: 'Weight (kg)',
+                  label: widget.slot.isPerSide ? 'Weight/side (kg)' : 'Weight (kg)',
                   hint: weightHint,
                   decimal: true,
                 ),

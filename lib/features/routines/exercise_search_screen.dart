@@ -344,6 +344,7 @@ class _SlotConfigSheet extends StatefulWidget {
 class _SlotConfigSheetState extends State<_SlotConfigSheet> {
   ExerciseType _type = ExerciseType.weights;
   SetType _setType = SetType.straight;
+  bool _isPerSide = false;
   final _setsCtrl = TextEditingController(text: '3');
   final _repsCtrl = TextEditingController(text: '10');
   final _durationCtrl = TextEditingController();
@@ -352,6 +353,8 @@ class _SlotConfigSheetState extends State<_SlotConfigSheet> {
 
   bool get _usesReps =>
       _type == ExerciseType.weights || _type == ExerciseType.bodyweight;
+
+  bool get _usesWeight => _type == ExerciseType.weights;
 
   bool get _isPyramid => _setType != SetType.straight;
 
@@ -547,14 +550,60 @@ class _SlotConfigSheetState extends State<_SlotConfigSheet> {
                   )),
             ],
 
-            if (_type == ExerciseType.weights) ...[
+            if (_usesWeight) ...[
               const SizedBox(height: 12),
               TextField(
                 controller: _weightCtrl,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Default weight (kg, optional)'),
+                decoration: InputDecoration(
+                    labelText: _isPerSide
+                        ? 'Weight per side (kg, optional)'
+                        : 'Total weight (kg, optional)'),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => setState(() => _isPerSide = !_isPerSide),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _isPerSide
+                        ? AppColors.accent.withValues(alpha: 0.12)
+                        : AppColors.surface2,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _isPerSide
+                          ? AppColors.accent
+                          : AppColors.divider,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isPerSide
+                            ? Icons.check_box
+                            : Icons.check_box_outline_blank,
+                        size: 18,
+                        color: _isPerSide
+                            ? AppColors.accent
+                            : AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Weight is per side',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: _isPerSide
+                              ? AppColors.accent
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
             const SizedBox(height: 24),
@@ -599,6 +648,7 @@ class _SlotConfigSheetState extends State<_SlotConfigSheet> {
       weightKg: _type == ExerciseType.weights
           ? double.tryParse(_weightCtrl.text)
           : null,
+      isPerSide: _usesWeight && _isPerSide,
     ));
   }
 }

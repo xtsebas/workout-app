@@ -19,6 +19,7 @@ class ExerciseSlots extends Table {
   TextColumn get repsPerSet => text().nullable()();
   IntColumn get durationSeconds => integer().nullable()();
   RealColumn get weightKg => real().nullable()();
+  BoolColumn get isPerSide => boolean().withDefault(const Constant(false))();
   TextColumn get notes => text().nullable()();
 
   /// Sync-ready columns (used by the future Cloud Sync phase).
