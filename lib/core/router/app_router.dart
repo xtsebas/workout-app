@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/db/database.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../features/auth/sign_in_screen.dart';
+import '../../features/profile/edit_exercises_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/progress/progress_screen.dart';
 import '../../features/routines/create_routine_screen.dart';
@@ -63,6 +64,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/routines/pdf-import',
         builder: (context, state) => const PdfImportScreen(),
+      ),
+      GoRoute(
+        path: '/profile/edit-exercises',
+        builder: (context, state) => const EditExercisesScreen(),
       ),
       GoRoute(
         path: '/progress/exercise',

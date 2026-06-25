@@ -353,6 +353,34 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
 
+  // Admin exercise editing
+  Future<List<({String name, bool isPerSide})>> getDistinctSlotExercises() async {
+    final query = selectOnly(exerciseSlots, distinct: true)
+      ..addColumns([exerciseSlots.exerciseName, exerciseSlots.isPerSide]);
+    final rows = await query.get();
+    return rows.map((r) => (
+          name: r.read(exerciseSlots.exerciseName)!,
+          isPerSide: r.read(exerciseSlots.isPerSide)!,
+        )).toList();
+  }
+
+  Future<void> renameExercise(String oldName, String newName) async {
+    await (update(exerciseSlots)
+          ..where((t) => t.exerciseName.equals(oldName)))
+        .write(ExerciseSlotsCompanion(exerciseName: Value(newName)));
+    await (update(setLogEntries)
+          ..where((t) => t.exerciseName.equals(oldName)))
+        .write(SetLogEntriesCompanion(exerciseName: Value(newName)));
+    await (update(customExercises)
+          ..where((t) => t.name.equals(oldName)))
+        .write(CustomExercisesCompanion(name: Value(newName)));
+  }
+
+  Future<void> updateExercisePerSide(String name, bool isPerSide) =>
+      (update(exerciseSlots)
+            ..where((t) => t.exerciseName.equals(name)))
+          .write(ExerciseSlotsCompanion(isPerSide: Value(isPerSide)));
+
   // Custom exercises
   Future<int> insertCustomExercise(CustomExercisesCompanion exercise) =>
       into(customExercises).insertOnConflictUpdate(exercise);

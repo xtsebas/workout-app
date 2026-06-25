@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -49,6 +50,14 @@ class ProfileScreen extends ConsumerWidget {
             title: 'Manage routines',
             onTap: () => context.push('/routines'),
           ),
+          if (user?.email == dotenv.env['ADMIN_EMAIL']) ...[
+            const SizedBox(height: 8),
+            _ActionTile(
+              icon: Icons.edit_note,
+              title: 'Edit exercises',
+              onTap: () => context.push('/profile/edit-exercises'),
+            ),
+          ],
           const SizedBox(height: 32),
 
           // Sign out
