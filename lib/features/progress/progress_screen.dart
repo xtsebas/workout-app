@@ -5,9 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:drift/drift.dart' hide Column;
+import 'package:printing/printing.dart';
 
 import '../../core/db/database.dart';
+import '../../core/db/database_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../shared/services/progress_pdf_service.dart';
 import '../../shared/widgets/skeleton_loader.dart';
 import 'progress_provider.dart';
 
@@ -37,6 +41,67 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen>
     super.dispose();
   }
 
+  Future<void> _downloadPdf(BuildContext context, WidgetRef ref, String mode) async {
+    final db = ref.read(appDatabaseProvider);
+    final names = await db.getDistinctExerciseNames();
+    if (names.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No workout data to export')),
+        );
+      }
+      return;
+    }
+
+    String title;
+    String dateRange;
+    List<WorkoutLog> logs;
+
+    if (mode == 'current') {
+      logs = await db.getLogsForMonth(_selectedMonth.year, _selectedMonth.month);
+      title = 'Progress Report';
+      dateRange = DateFormat('MMMM y').format(_selectedMonth);
+    } else {
+      logs = await (db.select(db.workoutLogs)
+            ..where((t) => t.isCompleted.equals(true))
+            ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+          .get();
+      title = 'Progress Report';
+      dateRange = logs.isNotEmpty
+          ? '${DateFormat('MMM d, y').format(logs.last.date)} — ${DateFormat('MMM d, y').format(logs.first.date)}'
+          : 'All time';
+    }
+
+    final exercises = <ExerciseReport>[];
+    for (final name in names) {
+      final history = await db.getExerciseHistory(name);
+      if (history.isEmpty) continue;
+      exercises.add(ExerciseReport(
+        name: name,
+        sessions: history.length,
+        firstWeight: history.first.maxWeight,
+        lastWeight: history.last.maxWeight,
+        bestWeight: history.fold(0.0, (m, h) => h.maxWeight > m ? h.maxWeight : m),
+        bestReps: history.fold(0, (m, h) => h.bestReps > m ? h.bestReps : m),
+        totalVolume: history.fold(0.0, (s, h) => s + h.totalVolume),
+        history: history,
+      ));
+    }
+
+    final streak = await db.currentStreak();
+
+    const service = ProgressPdfService();
+    final bytes = await service.generate(
+      title: title,
+      dateRange: dateRange,
+      logs: logs,
+      exercises: exercises,
+      streak: streak,
+    );
+
+    await Printing.sharePdf(bytes: bytes, filename: 'workout_progress.pdf');
+  }
+
   void _changeMonth(int delta) {
     setState(() {
       _selectedMonth = DateTime(
@@ -51,6 +116,27 @@ class _ProgressScreenState extends ConsumerState<ProgressScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Progress'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.download, color: AppColors.textSecondary, size: 22),
+            color: AppColors.surface2,
+            onSelected: (value) => _downloadPdf(context, ref, value),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'current',
+                child: Text(
+                  'Download ${DateFormat('MMMM y').format(_selectedMonth)}',
+                  style: GoogleFonts.outfit(color: AppColors.textPrimary),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'all',
+                child: Text('Download all time',
+                    style: GoogleFonts.outfit(color: AppColors.textPrimary)),
+              ),
+            ],
+          ),
+        ],
         bottom: TabBar(
           controller: _tabCtrl,
           indicatorColor: AppColors.accent,

@@ -48,6 +48,10 @@ dependencies:
   # Charts
   fl_chart: ^0.70.2
 
+  # PDF generation
+  pdf: ^3.11.2
+  printing: ^5.13.5
+
   # Animations
   flutter_animate: ^4.5.2
 
