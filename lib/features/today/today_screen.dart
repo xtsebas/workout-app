@@ -9,6 +9,7 @@ import '../../core/db/database.dart';
 import '../../core/db/database_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../shared/models/exercise_type.dart';
+import '../../shared/utils/weight_converter.dart' as wc;
 import '../../shared/widgets/skeleton_loader.dart';
 import '../workout/workout_provider.dart';
 import 'today_provider.dart';
@@ -44,6 +45,7 @@ class _TodayContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final unit = ref.watch(weightUnitProvider).valueOrNull ?? 'kg';
     final today = data.today;
     final weekdayName = _weekdayName(data.selectedWeekday);
     final isOverride = data.selectedWeekday != today.weekday;
@@ -119,14 +121,14 @@ class _TodayContent extends ConsumerWidget {
         ),
         SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          sliver: _buildBody(context, ref),
+          sliver: _buildBody(context, ref, unit),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, String unit) {
     if (data.routine == null) {
       return SliverToBoxAdapter(child: _NoRoutineCard());
     }
@@ -188,7 +190,7 @@ class _TodayContent extends ConsumerWidget {
           SliverList.separated(
             itemCount: data.slots.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (context, i) => _ExerciseCard(slot: data.slots[i])
+            itemBuilder: (context, i) => _ExerciseCard(slot: data.slots[i], unit: unit)
                 .animate()
                 .fadeIn(duration: 300.ms, delay: (50 * i).ms)
                 .slideX(begin: -0.02, end: 0, duration: 300.ms, delay: (50 * i).ms),
@@ -316,9 +318,10 @@ class _StatChip extends StatelessWidget {
 }
 
 class _ExerciseCard extends StatelessWidget {
-  const _ExerciseCard({required this.slot});
+  const _ExerciseCard({required this.slot, required this.unit});
 
   final ExerciseSlot slot;
+  final String unit;
 
   @override
   Widget build(BuildContext context) {
@@ -377,7 +380,7 @@ class _ExerciseCard extends StatelessWidget {
     switch (s.exerciseType) {
       case ExerciseType.weights:
         final reps = s.reps != null ? '× ${s.reps} reps' : '';
-        final weight = s.weightKg != null ? ' @ ${s.weightKg}kg' : '';
+        final weight = s.weightKg != null ? ' @ ${wc.fmtWeight(s.weightKg, unit)}$unit' : '';
         return '${s.sets} sets $reps$weight'.trim();
       case ExerciseType.bodyweight:
         final reps = s.reps != null ? '× ${s.reps} reps' : '';

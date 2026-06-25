@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/db/database.dart';
 import '../../core/db/database_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../shared/utils/weight_converter.dart' as wc;
 import '../../shared/models/exercise_type.dart';
 import '../../shared/models/set_type.dart';
 import '../../shared/services/wger_service.dart';
@@ -324,7 +325,7 @@ class _HintState extends StatelessWidget {
 
 // ── Slot config bottom sheet ──────────────────────────────────────────────────
 
-class _SlotConfigSheet extends StatefulWidget {
+class _SlotConfigSheet extends ConsumerStatefulWidget {
   const _SlotConfigSheet({
     required this.result,
     required this.weekday,
@@ -338,10 +339,10 @@ class _SlotConfigSheet extends StatefulWidget {
   final bool isCustom;
 
   @override
-  State<_SlotConfigSheet> createState() => _SlotConfigSheetState();
+  ConsumerState<_SlotConfigSheet> createState() => _SlotConfigSheetState();
 }
 
-class _SlotConfigSheetState extends State<_SlotConfigSheet> {
+class _SlotConfigSheetState extends ConsumerState<_SlotConfigSheet> {
   ExerciseType _type = ExerciseType.weights;
   SetType _setType = SetType.straight;
   bool _isPerSide = false;
@@ -355,6 +356,8 @@ class _SlotConfigSheetState extends State<_SlotConfigSheet> {
       _type == ExerciseType.weights || _type == ExerciseType.bodyweight;
 
   bool get _usesWeight => _type == ExerciseType.weights;
+
+  String get _unit => ref.watch(weightUnitProvider).valueOrNull ?? 'kg';
 
   bool get _isPyramid => _setType != SetType.straight;
 
@@ -558,8 +561,8 @@ class _SlotConfigSheetState extends State<_SlotConfigSheet> {
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                     labelText: _isPerSide
-                        ? 'Weight per side (kg, optional)'
-                        : 'Total weight (kg, optional)'),
+                        ? 'Weight per side (${_unit}, optional)'
+                        : 'Total weight (${_unit}, optional)'),
               ),
               const SizedBox(height: 12),
               GestureDetector(
@@ -617,6 +620,12 @@ class _SlotConfigSheetState extends State<_SlotConfigSheet> {
     );
   }
 
+  double? _parseWeightToKg() {
+    final v = double.tryParse(_weightCtrl.text);
+    if (v == null) return null;
+    return wc.toKg(v, _unit);
+  }
+
   void _submit() {
     final sets = int.tryParse(_setsCtrl.text) ?? 3;
     List<int>? repsPerSet;
@@ -646,7 +655,7 @@ class _SlotConfigSheetState extends State<_SlotConfigSheet> {
               ? int.tryParse(_durationCtrl.text)
               : null,
       weightKg: _type == ExerciseType.weights
-          ? double.tryParse(_weightCtrl.text)
+          ? _parseWeightToKg()
           : null,
       isPerSide: _usesWeight && _isPerSide,
     ));

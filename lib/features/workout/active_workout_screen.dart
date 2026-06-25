@@ -9,8 +9,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/db/database.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/db/database_provider.dart';
 import '../../shared/models/exercise_type.dart';
 import '../../shared/models/set_type.dart';
+import '../../shared/utils/weight_converter.dart' as wc;
 import 'workout_provider.dart';
 
 class ActiveWorkoutScreen extends ConsumerStatefulWidget {
@@ -52,6 +54,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     final workoutState = ref.watch(activeWorkoutProvider);
+    final unit = ref.watch(weightUnitProvider).valueOrNull ?? 'kg';
 
     if (workoutState == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -105,7 +108,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                   return _ExerciseLogCard(
                     slot: slot,
                     sets: sets,
-                    onAddSet: () => _showSetInput(context, slot, sets.length),
+                    unit: unit,
+                    onAddSet: () => _showSetInput(context, slot, sets.length, unit),
                     onRemoveSet: () async => ref
                         .read(activeWorkoutProvider.notifier)
                         .removeLastSet(slot.id),
@@ -195,7 +199,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     });
   }
 
-  void _showSetInput(BuildContext context, ExerciseSlot slot, int setIndex) {
+  void _showSetInput(BuildContext context, ExerciseSlot slot, int setIndex, String unit) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -206,6 +210,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       builder: (ctx) => _SetInputSheet(
         slot: slot,
         setNumber: setIndex + 1,
+        unit: unit,
         onConfirm: (draft) async {
           HapticFeedback.mediumImpact();
           await ref.read(activeWorkoutProvider.notifier).addSet(slot.id, draft);
@@ -265,6 +270,7 @@ class _ExerciseLogCard extends StatelessWidget {
   const _ExerciseLogCard({
     required this.slot,
     required this.sets,
+    required this.unit,
     required this.onAddSet,
     required this.onRemoveSet,
     required this.onTapDetail,
@@ -272,6 +278,7 @@ class _ExerciseLogCard extends StatelessWidget {
 
   final ExerciseSlot slot;
   final List<SetDraft> sets;
+  final String unit;
   final VoidCallback onAddSet;
   final VoidCallback onRemoveSet;
   final VoidCallback onTapDetail;
@@ -357,6 +364,7 @@ class _ExerciseLogCard extends StatelessWidget {
                   setNumber: e.key + 1,
                   draft: e.value,
                   type: slot.exerciseType,
+                  unit: unit,
                 )),
           // Add / Remove buttons
           Padding(
@@ -397,7 +405,7 @@ class _ExerciseLogCard extends StatelessWidget {
           return 'Planned: ${s.repsPerSet}$pyramid'.trim();
         }
         final reps = s.reps != null ? '${s.reps} reps' : '';
-        final weight = s.weightKg != null ? ' @ ${s.weightKg}kg$perSide' : '';
+        final weight = s.weightKg != null ? ' @ ${wc.fmtWeight(s.weightKg, unit)}$unit$perSide' : '';
         return 'Planned: ${s.sets} × $reps$weight$pyramid'.trim();
       case ExerciseType.bodyweight:
         if (s.repsPerSet != null && s.repsPerSet!.isNotEmpty) {
@@ -419,11 +427,13 @@ class _SetRow extends StatelessWidget {
     required this.setNumber,
     required this.draft,
     required this.type,
+    required this.unit,
   });
 
   final int setNumber;
   final SetDraft draft;
   final ExerciseType type;
+  final String unit;
 
   @override
   Widget build(BuildContext context) {
@@ -469,7 +479,7 @@ class _SetRow extends StatelessWidget {
       case ExerciseType.weights:
         final reps = draft.reps != null ? '${draft.reps} reps' : '';
         final weight =
-            draft.weightKg != null ? ' × ${draft.weightKg}kg' : '';
+            draft.weightKg != null ? ' × ${wc.fmtWeight(draft.weightKg, unit)}$unit' : '';
         return '$reps$weight';
       case ExerciseType.bodyweight:
         return draft.reps != null ? '${draft.reps} reps' : '';
@@ -528,11 +538,13 @@ class _SetInputSheet extends ConsumerStatefulWidget {
   const _SetInputSheet({
     required this.slot,
     required this.setNumber,
+    required this.unit,
     required this.onConfirm,
   });
 
   final ExerciseSlot slot;
   final int setNumber;
+  final String unit;
   final void Function(SetDraft) onConfirm;
 
   @override
@@ -573,10 +585,12 @@ class _SetInputSheetState extends ConsumerState<_SetInputSheet> {
       widget.slot.exerciseName,
       widget.slot.sets,
     ));
-    final lastWeight = lastWeights.valueOrNull?[widget.setNumber];
-    final lastWeightHint = lastWeight != null
-        ? '${lastWeight % 1 == 0 ? lastWeight.toInt() : lastWeight}'
-        : widget.slot.weightKg?.toString();
+    final lastWeightKg = lastWeights.valueOrNull?[widget.setNumber];
+    final lastWeightHint = lastWeightKg != null
+        ? wc.fmtWeight(lastWeightKg, widget.unit)
+        : widget.slot.weightKg != null
+            ? wc.fmtWeight(widget.slot.weightKg, widget.unit)
+            : null;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottom),
@@ -592,11 +606,11 @@ class _SetInputSheetState extends ConsumerState<_SetInputSheet> {
               color: AppColors.textPrimary,
             ),
           ),
-          if (lastWeight != null)
+          if (lastWeightKg != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                'Last: ${lastWeight % 1 == 0 ? lastWeight.toInt() : lastWeight} kg${widget.slot.isPerSide ? '/side' : ''}',
+                'Last: ${wc.fmtWeight(lastWeightKg, widget.unit)} ${widget.unit}${widget.slot.isPerSide ? '/side' : ''}',
                 style: GoogleFonts.outfit(
                   fontSize: 13,
                   color: AppColors.accent,
@@ -634,7 +648,9 @@ class _SetInputSheetState extends ConsumerState<_SetInputSheet> {
               Expanded(
                 child: _NumberField(
                   controller: _weightCtrl,
-                  label: widget.slot.isPerSide ? 'Weight/side (kg)' : 'Weight (kg)',
+                  label: widget.slot.isPerSide
+                      ? 'Weight/side (${widget.unit})'
+                      : 'Weight (${widget.unit})',
                   hint: weightHint,
                   decimal: true,
                 ),
@@ -692,6 +708,12 @@ class _SetInputSheetState extends ConsumerState<_SetInputSheet> {
     }
   }
 
+  double? _parseWeightToKg() {
+    final v = double.tryParse(_weightCtrl.text);
+    if (v == null) return null;
+    return wc.toKg(v, widget.unit);
+  }
+
   void _submit() {
     final type = widget.slot.exerciseType;
     widget.onConfirm(SetDraft(
@@ -700,7 +722,7 @@ class _SetInputSheetState extends ConsumerState<_SetInputSheet> {
           ? int.tryParse(_repsCtrl.text)
           : null,
       weightKg: type == ExerciseType.weights
-          ? double.tryParse(_weightCtrl.text)
+          ? _parseWeightToKg()
           : null,
       durationSeconds:
           type == ExerciseType.cardio || type == ExerciseType.timed
