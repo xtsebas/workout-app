@@ -92,6 +92,9 @@ class _CreateRoutineScreenState extends ConsumerState<CreateRoutineScreen> {
                   onRemove: (i) => ref
                       .read(routineBuilderProvider.notifier)
                       .removeSlot(weekday, i),
+                  onReorder: (oldIndex, newIndex) => ref
+                      .read(routineBuilderProvider.notifier)
+                      .reorderSlot(weekday, oldIndex, newIndex),
                 ))),
             const SizedBox(height: 24),
           ],
@@ -202,12 +205,14 @@ class _DaySection extends StatelessWidget {
     required this.slots,
     required this.onAddExercise,
     required this.onRemove,
+    required this.onReorder,
   });
 
   final int weekday;
   final List<SlotConfig> slots;
   final VoidCallback onAddExercise;
   final void Function(int) onRemove;
+  final void Function(int oldIndex, int newIndex) onReorder;
 
   @override
   Widget build(BuildContext context) {
@@ -241,13 +246,27 @@ class _DaySection extends StatelessWidget {
               ),
             )
           else
-            ...slots.asMap().entries.map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _SlotRow(
-                    slot: e.value,
-                    onRemove: () => onRemove(e.key),
-                  ),
-                )),
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              proxyDecorator: (child, _, animation) => Material(
+                color: Colors.transparent,
+                elevation: 4 * animation.value,
+                borderRadius: BorderRadius.circular(10),
+                child: child,
+              ),
+              onReorderItem: (oldIndex, newIndex) =>
+                  onReorder(oldIndex, newIndex),
+              itemCount: slots.length,
+              itemBuilder: (context, i) => Padding(
+                key: ValueKey('$weekday-$i-${slots[i].exerciseName}'),
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _SlotRow(
+                  slot: slots[i],
+                  onRemove: () => onRemove(i),
+                ),
+              ),
+            ),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: onAddExercise,

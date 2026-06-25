@@ -101,6 +101,15 @@ class RoutineBuilder extends _$RoutineBuilder {
     state = state.copyWith(slotsByDay: slots);
   }
 
+  void reorderSlot(int weekday, int oldIndex, int newIndex) {
+    final slots = Map<int, List<SlotConfig>>.from(state.slotsByDay);
+    final list = List<SlotConfig>.from(slots[weekday] ?? []);
+    final item = list.removeAt(oldIndex);
+    list.insert(newIndex, item);
+    slots[weekday] = list;
+    state = state.copyWith(slotsByDay: slots);
+  }
+
   void removeSlot(int weekday, int index) {
     final slots = Map<int, List<SlotConfig>>.from(state.slotsByDay);
     final list = List<SlotConfig>.from(slots[weekday] ?? []);
